@@ -24,11 +24,20 @@ Below master level, a chess rating mostly measures **how rarely you make big mis
 
 So Gambit does three things:
 
-| | |
-|:--|:--|
-| **Shrink the error tail** | Every blunder in your games becomes a position you solve cold, in many variations, on a spaced schedule, until the pattern is automatic. |
-| **Games are tests, not training** | Study beats play roughly 3.6× per hour. Gambit spends your hours on solving, analysis and endgames, and uses games to measure. |
-| **Read the slope** | Rating is noisy (±40 points is nothing). Gambit tracks rolling averages per games played, blunders per game, clock use and the rating band your moves resemble. |
+<table>
+  <tr>
+    <td width="30%"><b>Shrink the error tail</b></td>
+    <td>Every blunder in your games becomes a position you solve cold, in many variations, on a spaced schedule, until the pattern is automatic.</td>
+  </tr>
+  <tr>
+    <td><b>Games are tests, not training</b></td>
+    <td>Study beats play roughly 3.6× per hour. Gambit spends your hours on solving, analysis and endgames, and uses games to measure.</td>
+  </tr>
+  <tr>
+    <td><b>Read the slope</b></td>
+    <td>Rating is noisy (±40 points is nothing). Gambit tracks rolling averages per games played, blunders per game, clock use and the rating band your moves resemble.</td>
+  </tr>
+</table>
 
 <br>
 
