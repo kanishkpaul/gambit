@@ -1,6 +1,8 @@
-# Gambit
+# gambit
 
 A personal macOS chess tutor for one player. It is not distributed, so optimise for this player's training, not for general users.
+
+The name is always lowercase, **gambit** (repo, app, bundle and window title), including at the start of a sentence.
 
 - Product plan and build order: `docs/PLAN.md`
 - Design language and quality bar: `docs/DESIGN.md`

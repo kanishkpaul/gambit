@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
-  <title id="title">Gambit</title>
-  <desc id="desc">Gambit — a private chess tutor. Shrink the error tail. Read the slope.</desc>
+  <title id="title">gambit</title>
+  <desc id="desc">gambit — a private chess tutor. Shrink the error tail. Read the slope.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0A0A0D"/>
@@ -52,9 +52,9 @@
     <rect x="1" y="1" width="16" height="16" fill="none" stroke="#C9A86A" stroke-opacity="0.55"/>
   </g>
 
-  <text x="654" y="236" text-anchor="middle"
+  <text x="645" y="232" text-anchor="middle"
         font-family="'Didot','Bodoni 72','Playfair Display','Times New Roman',serif"
-        font-size="118" letter-spacing="28" fill="url(#gold)">GAMBIT</text>
+        font-size="132" letter-spacing="10" fill="url(#gold)">gambit</text>
 
   <rect x="440" y="276" width="400" height="1" fill="url(#hair)"/>
 

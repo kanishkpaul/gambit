@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.svg" alt="Gambit — shrink the error tail, read the slope" width="100%">
+  <img src="assets/banner.svg" alt="gambit — shrink the error tail, read the slope" width="100%">
 </p>
 
 <p align="center">
@@ -22,7 +22,7 @@
 
 Below master level, a chess rating mostly measures **how rarely you make big mistakes**. Blunders fall roughly by half for every 600 rating points, and most of that strength is fast recognition, not deeper calculation.
 
-So Gambit does three things:
+So gambit does three things:
 
 <table>
   <tr>
@@ -31,11 +31,11 @@ So Gambit does three things:
   </tr>
   <tr>
     <td><b>Games are tests, not training</b></td>
-    <td>Study beats play roughly 3.6× per hour. Gambit spends your hours on solving, analysis and endgames, and uses games to measure.</td>
+    <td>Study beats play roughly 3.6× per hour. gambit spends your hours on solving, analysis and endgames, and uses games to measure.</td>
   </tr>
   <tr>
     <td><b>Read the slope</b></td>
-    <td>Rating is noisy (±40 points is nothing). Gambit tracks rolling averages per games played, blunders per game, clock use and the rating band your moves resemble.</td>
+    <td>Rating is noisy (±40 points is nothing). gambit tracks rolling averages per games played, blunders per game, clock use and the rating band your moves resemble.</td>
   </tr>
 </table>
 
@@ -128,7 +128,7 @@ flowchart LR
 ## Architecture
 
 ```
-┌──────────────────────────── Gambit.app (Tauri 2) ────────────────────────────┐
+┌──────────────────────────── gambit.app (Tauri 2) ────────────────────────────┐
 │                                                                              │
 │   UI   React · TypeScript · chessground · chessops                           │
 │        ───────────────────────────── local IPC / HTTP ─────────────────────  │

@@ -1,6 +1,6 @@
 # Design language
 
-Gambit should feel like a premium instrument: quiet, precise and expensive. You'll spend 20–40 hours a week in it, so every screen is design work, not decoration added afterwards.
+gambit should feel like a premium instrument: quiet, precise and expensive. You'll spend 20–40 hours a week in it, so every screen is design work, not decoration added afterwards.
 
 ## North star
 

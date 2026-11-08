@@ -1,6 +1,6 @@
 # Product plan
 
-Gambit is a personal Mac chess tutor for one player. Its design follows research on accelerated skill acquisition and chess expertise (kept outside this repository).
+gambit is a personal Mac chess tutor for one player. Its design follows research on accelerated skill acquisition and chess expertise (kept outside this repository).
 
 ## Core model
 
