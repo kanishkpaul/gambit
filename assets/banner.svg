@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
+  <title id="title">Gambit</title>
+  <desc id="desc">Gambit — a private chess tutor. Shrink the error tail. Read the slope.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0A0A0D"/>
+      <stop offset="1" stop-color="#15131B"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.42" r="0.55">
+      <stop offset="0" stop-color="#C9A86A" stop-opacity="0.22"/>
+      <stop offset="0.55" stop-color="#C9A86A" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#C9A86A" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F6E7C1"/>
+      <stop offset="0.5" stop-color="#D9B979"/>
+      <stop offset="1" stop-color="#A9844A"/>
+    </linearGradient>
+    <linearGradient id="hair" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#C9A86A" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#C9A86A" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#C9A86A" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="board" width="140" height="140" patternUnits="userSpaceOnUse">
+      <rect width="70" height="70" fill="#FFFFFF" fill-opacity="0.045"/>
+      <rect x="70" y="70" width="70" height="70" fill="#FFFFFF" fill-opacity="0.045"/>
+    </pattern>
+    <radialGradient id="fade" cx="0.5" cy="0.5" r="0.75">
+      <stop offset="0.25" stop-color="#000" stop-opacity="1"/>
+      <stop offset="1" stop-color="#FFF" stop-opacity="1"/>
+    </radialGradient>
+    <mask id="edges">
+      <rect width="1280" height="420" fill="url(#fade)"/>
+    </mask>
+    <clipPath id="card">
+      <rect width="1280" height="420" rx="28"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#card)">
+    <rect width="1280" height="420" fill="url(#bg)"/>
+    <rect width="1280" height="420" fill="url(#board)" mask="url(#edges)"/>
+    <rect width="1280" height="420" fill="url(#glow)"/>
+  </g>
+  <rect x="0.5" y="0.5" width="1279" height="419" rx="27.5" fill="none" stroke="#C9A86A" stroke-opacity="0.22"/>
+
+  <!-- mark: a single gold square on a board corner -->
+  <g transform="translate(640 92) rotate(45)">
+    <rect x="-17" y="-17" width="16" height="16" fill="none" stroke="#C9A86A" stroke-opacity="0.55"/>
+    <rect x="1" y="-17" width="16" height="16" fill="url(#gold)"/>
+    <rect x="-17" y="1" width="16" height="16" fill="url(#gold)" fill-opacity="0.35"/>
+    <rect x="1" y="1" width="16" height="16" fill="none" stroke="#C9A86A" stroke-opacity="0.55"/>
+  </g>
+
+  <text x="654" y="236" text-anchor="middle"
+        font-family="'Didot','Bodoni 72','Playfair Display','Times New Roman',serif"
+        font-size="118" letter-spacing="28" fill="url(#gold)">GAMBIT</text>
+
+  <rect x="440" y="276" width="400" height="1" fill="url(#hair)"/>
+
+  <text x="643" y="318" text-anchor="middle"
+        font-family="-apple-system,'SF Pro Text','Helvetica Neue',Helvetica,Arial,sans-serif"
+        font-size="17" letter-spacing="6" fill="#A7A196">SHRINK THE ERROR TAIL · READ THE SLOPE</text>
+</svg>

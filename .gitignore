@@ -1,0 +1,49 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Tauri / Rust
+src-tauri/target/
+target/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+
+# Engines, models and large data (downloaded locally, never committed)
+engines/
+models/
+*.pt
+*.pth
+*.onnx
+*.pb.gz
+data/
+*.sqlite
+*.sqlite3
+*.db
+*.csv.zst
+*.pgn
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
