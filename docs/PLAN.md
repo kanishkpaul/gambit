@@ -10,20 +10,46 @@ gambit is a personal Mac chess tutor for one player. Its design follows research
 4. **Study beats play per hour** (~3.6× on Chess.com data). Games are tests and raw material for analysis.
 5. **Rating is noisy.** ±40 points of standard deviation at fixed skill, and 90-point swings within 50 games are normal. Steer by rolling averages per games played and by leading indicators.
 
-## Stack
+## Stack (locked 2026-11-09)
 
-- **Shell:** Tauri 2. The UI is React and TypeScript, with chessground for the board and chessops for chess rules.
-- **Brain:** a local Python 3.12 service:
-  - python-chess for game logic
-  - Stockfish 18+ over UCI for analysis
-  - Maia-3 (CSSLab, PyTorch on Apple MPS) for human-like play; Maia-2 as fallback
-  - FSRS for spaced-review scheduling
-- **Storage:** SQLite, local only.
-- **Sources:**
-  - Chess.com public API (monthly PGN archives, no auth)
-  - Lichess API (personal token: game export with clocks and evals, puzzle activity, tablebase, opening explorer)
-  - Lichess puzzle database (one-time download)
-- **Coach:** Claude API. The key is stored in the macOS Keychain, and every claim must be grounded in engine output.
+Decided by the stack evaluation (research report 06). Native SwiftUI is the runner-up and replaces only the UI layer if the bake-off triggers it (see below).
+
+| Layer | Owner | Choice |
+|---|---|---|
+| UI | TypeScript + React | `@lichess-org/chessground` 10.5 (thin in-house React wrapper), `chessops` 0.15 for client-side legality/SAN/mirroring, Tailwind 4 + shadcn source restyled to `DESIGN.md`, Motion, cmdk (⌘K), Observable Plot (visx/D3 where bespoke) |
+| Shell | Rust (thin) | Tauri 2.12: windows, menus, settings, `window-vibrancy`, Keychain via `keyring`, supervises the brain. Plain `std::process`/tokio spawning, no bundled sidecar |
+| Brain | Python 3.12 (pinned), run with `uv run` | One long-lived asyncio process that owns everything below |
+| Chess logic | Python | python-chess 1.11.x; vendored, adapted lichess-puzzler tagger |
+| Engines | Python | Pool of Stockfish 19 processes via `chess.engine`: N × Threads=1 for batch, 1 × Threads=3 for live. Validate FENs first (SF19 exits on invalid input) |
+| ML | Python | Maia-3 (CSSLab, pinned commit) called through its model code, not `maia3-uci`; Maia-2 Rapid alongside for rapid play; ONNX Runtime export as a benchmarked alternative backend |
+| Review | Python | py-fsrs (FSRS-6) with optimizer |
+| Storage | Python, single writer | stdlib `sqlite3`, WAL, one file; Lichess puzzle CSV imported once |
+| APIs | Python | berserk for Lichess (personal token with `puzzle:read`; explorer needs the token); `httpx` for Chess.com PubAPI (serial, generic User-Agent, ETag) |
+| Coach | Python | Official `anthropic` SDK, `claude-opus-5-5`, structured outputs, no prefill or temperature; grounded in Stockfish output |
+
+### Process architecture
+
+```
+gambit.app (Tauri, Rust) ── reads Keychain, spawns brain, owns windows/menus
+   │  spawn: uv run --frozen --project brain python -m gambit_brain
+   │  stdin: init {lichess_token, anthropic_key, ws_token}; EOF = brain exits
+   ▼
+WKWebView (React) ── JSON-RPC over ws://127.0.0.1:<port>?t=<ws_token>
+   ▼
+gambit_brain (Python 3.12) ── SQLite · Maia (warm) · FSRS · tagger · coach · Stockfish pool
+```
+
+- The brain also polls its parent PID and exits if the shell dies. Every quit path must leave zero orphans.
+- Secrets flow Rust → brain over stdin; they never enter the WebView and Python never touches the Keychain.
+- The WebSocket lets the full stack run in a normal browser during development (`uv run gambit_brain --dev` + Vite), so UI work can be verified with browser tooling.
+- Batch analysis defaults to 300k nodes per position at background priority, with deeper re-search only on critical positions.
+- The fair-play lock suspends the Stockfish pool and Maia, not just the panels.
+- Never fine-tune a model on Chess.com games (User Agreement §4(D)); use Lichess CC0 data.
+- Sign dev builds with one stable identity so the Keychain doesn't re-prompt.
+
+### Runner-up trigger
+
+Switch the UI layer to native SwiftUI (keeping the brain and protocol unchanged) if any of these happens: the board can't meet the motion spec without heavy patching; the native-feel audit fails on things CSS can't fix; or the owner prefers a SwiftUI board spike in a side-by-side comparison. Also re-test if training moves to a 120 Hz+ display.
 
 ## Modules
 

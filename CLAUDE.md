@@ -16,12 +16,13 @@ The name is always lowercase, **gambit** (repo, app, bundle and window title), i
 5. **The coach is grounded.** The Claude coach may only state evaluations and lines confirmed by Stockfish output passed into its prompt.
 6. **Local first.** Data lives in SQLite on the Mac. Secrets (Lichess token, Claude API key) go in the macOS Keychain, never in files or the repository.
 
-## Stack
+## Stack (locked; details in `docs/PLAN.md`)
 
-- Tauri 2 shell; React and TypeScript UI with chessground and chessops
-- Python 3.12 brain: python-chess, Stockfish 18+ (UCI), Maia-3 (CSSLab, PyTorch on MPS), FSRS
-- SQLite storage
-- External: Chess.com public API, Lichess API, Claude API
+- Tauri 2 shell (Rust, kept thin: windows, menus, Keychain, brain supervision)
+- React + TypeScript UI with `@lichess-org/chessground` and chessops
+- Python 3.12 brain, run with `uv run`, the single owner of chess logic, Stockfish 19 pool, Maia-3 / Maia-2, FSRS, SQLite (single writer), Lichess/Chess.com clients and the Claude coach
+- UI ↔ brain: JSON-RPC over a localhost WebSocket with a per-launch token; stdin is the brain's lifeline
+- Don't use Homebrew's default Python (3.15); Maia-2 needs 3.10–3.12
 
 ## Conventions
 
