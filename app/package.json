@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "tauri": "tauri",
-    "brain": "uv run --project ../brain python -m gambit_brain --dev"
+    "brain": "uv run --project ../brain python -m gambit_brain --dev",
+    "install-app": "tauri build && rm -rf /Applications/gambit.app && mv src-tauri/target/release/bundle/macos/gambit.app /Applications/gambit.app && touch /Applications/gambit.app"
   },
   "dependencies": {
     "@lichess-org/chessground": "^10.5.0",
