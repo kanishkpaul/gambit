@@ -54,8 +54,23 @@ fn brain_dir() -> PathBuf {
     .unwrap_or_else(|_| PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../../brain")))
 }
 
-fn spawn_brain(port: u16, ws_token: &str) -> std::io::Result<Brain> {
+/// In a release build the brain's output goes to ~/Library/Logs/dev.kanishkpaul.gambit/brain.log
+/// (a Finder-launched app has no terminal); `tauri dev` keeps it in the terminal.
+fn brain_log(app: &tauri::App) -> Option<std::fs::File> {
+  if cfg!(debug_assertions) {
+    return None;
+  }
+  let dir = app.path().app_log_dir().ok()?;
+  std::fs::create_dir_all(&dir).ok()?;
+  std::fs::File::create(dir.join("brain.log")).ok()
+}
+
+fn spawn_brain(port: u16, ws_token: &str, log: Option<&std::fs::File>) -> std::io::Result<Brain> {
   let dir = brain_dir();
+  if !dir.join("pyproject.toml").exists() {
+    return Err(std::io::Error::other(format!("no brain at {} (set GAMBIT_BRAIN_DIR if the repo moved)", dir.display())));
+  }
+  let out = |f: Option<&std::fs::File>| f.and_then(|f| f.try_clone().ok()).map(Stdio::from).unwrap_or_else(Stdio::inherit);
   let mut child = Command::new("uv")
     .env("PATH", child_path())
     .args(["run", "--frozen", "--project"])
@@ -63,6 +78,8 @@ fn spawn_brain(port: u16, ws_token: &str) -> std::io::Result<Brain> {
     .args(["python", "-m", "gambit_brain"])
     .current_dir(&dir)
     .stdin(Stdio::piped())
+    .stdout(out(log))
+    .stderr(out(log))
     .spawn()?;
   let mut stdin = child.stdin.take().expect("piped stdin");
   let mut init = json!({ "port": port, "ws_token": ws_token });
@@ -129,7 +146,14 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![set_secret])
     .setup(|app| {
       let (port, ws_token) = (free_port(), random_token());
-      let brain = spawn_brain(port, &ws_token).map_err(|e| format!("couldn't start the brain (is uv installed?): {e}"))?;
+      let log = brain_log(app);
+      let brain = spawn_brain(port, &ws_token, log.as_ref()).map_err(|e| {
+        let msg = format!("couldn't start the brain (is uv installed?): {e}");
+        if let Some(mut f) = log.as_ref() {
+          let _ = writeln!(f, "shell: {msg}");
+        }
+        msg
+      })?;
       *app.state::<Mutex<Option<Brain>>>().lock().unwrap() = Some(brain);
 
       app.set_menu(build_menu(app)?)?;

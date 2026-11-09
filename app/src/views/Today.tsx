@@ -58,9 +58,6 @@ export function Today({ onGo }: { onGo: (v: ViewId) => void }) {
           ))}
         </ol>
       )}
-      {p.folded.length > 0 && !p.rest_day && (
-        <p className="mt-3 mb-0 text-2xs text-faint">{p.folded.join(' and ')} arrive in v0.5; until then their share of the time goes to Solve and Game Lab.</p>
-      )}
 
       <section className="mt-12">
         <div className="mb-4 flex items-baseline justify-between border-b hairline pb-2">

@@ -1,6 +1,6 @@
 [package]
 name = "gambit"
-version = "0.1.0"
+version = "0.5.0"
 description = "gambit: a personal chess tutor"
 authors = ["Kanishk Paul"]
 edition = "2024"

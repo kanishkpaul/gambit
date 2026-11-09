@@ -32,6 +32,7 @@ The name is always lowercase, **gambit** (repo, app, bundle and window title), i
 - UI typecheck and lint: `cd app && npx tsc -b && npm run lint`
 - Run in a browser for UI work: `cd app && npm run brain` (dev brain on port 8765, token `dev`) plus `npm run dev`. Point it at a sandbox database with `GAMBIT_DATA_DIR=<dir>`; the default is the real one in `~/Library/Application Support/dev.kanishkpaul.gambit/`.
 - Run the app: `cd app && npm run tauri dev`
+- Build and install: `cd app && npm run tauri build`, then `ditto src-tauri/target/release/bundle/macos/gambit.app /Applications/gambit.app`. The built app runs the brain from this checkout (path compiled in; `GAMBIT_BRAIN_DIR` overrides), so rebuild if the repo moves. Its brain log is `~/Library/Logs/dev.kanishkpaul.gambit/brain.log`.
 - `bakeoff/` holds the stack bake-off and its spike. It is reference material; don't build on it.
 
 ## Conventions
