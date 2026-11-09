@@ -125,10 +125,10 @@ def test_plan_follows_stage_allocation(conn):
     mins = {b["activity"]: b["minutes"] for b in p["blocks"]}
     day = round(20 * 60 / 6 / 5) * 5
     assert abs(sum(mins.values()) - day) <= 10
-    # Master games and openings aren't built: their share folds into Solve and Game Lab.
-    assert "master_games" not in mins and "openings" not in mins
-    assert mins["solving"] > mins["analysis"] > 0 and p["blocks"][-1]["activity"] == "play"
-    assert p["folded"] == ["Master games", "Openings"]
+    # Every activity is built; stage 1 is solving-heavy and play comes last.
+    assert set(mins) == {"solving", "analysis", "endgames", "master_games", "openings", "play"}
+    assert mins["solving"] > mins["analysis"] > mins["openings"] > 0 and p["blocks"][-1]["activity"] == "play"
+    assert p["folded"] == []
 
 
 def test_rest_day_and_settings(conn):

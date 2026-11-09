@@ -91,6 +91,21 @@ class EnginePool:
         return Eval.from_pov(info["score"]), pv, int(info.get("nodes", nodes))
 
 
+    async def analyse_multi(self, fen: str, nodes: int, multipv: int) -> list[tuple[Eval, list[str]]]:
+        """Top `multipv` lines (eval, pv) for one position, best first."""
+        board = chess.Board(fen)
+        if not board.is_valid():
+            raise ValueError(f"invalid position: {fen}")
+        eng = await self._idle.get()
+        try:
+            infos = await eng.analyse(board, chess.engine.Limit(nodes=nodes), multipv=multipv)
+        except BaseException:
+            self._release(eng)
+            raise
+        self._release(eng)
+        return [(Eval.from_pov(i["score"]), [m.uci() for m in i.get("pv", [])][: self.budget.pv_len]) for i in infos]
+
+
 # ── Classification ───────────────────────────────────────────────────────────────────────────────
 
 

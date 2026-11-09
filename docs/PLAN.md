@@ -139,10 +139,19 @@ Switch the UI layer to native SwiftUI (keeping the brain and protocol unchanged)
 - **Human-level labels.** Maia-3 learned only from Lichess blitz, so its levels are on that scale, and the research found no trustworthy published conversion at beginner-to-club level. So gambit measures one: every game gets a Maia fit for both sides (log-likelihood totals at 21 levels, 600–2600, with a likelihood interval), and your rating against the level your own moves resemble, pooled over 15–40 recent rated games, gives a personal offset. Any level (a sparring bot, or any opponent, including other sites' bots via a pasted PGN) is then shown as "plays like a Chess.com rapid ~X player", with a likely range, relative to your own moves, and a pooled profile across repeat games. A fit at either end of Maia's range is shown as "or stronger"/"or weaker", never as a number. Your results against each level check the label.
 - **Background.** New games are fetched every 30 minutes and as soon as a Lichess game ends; the Maia fits run after analysis.
 
+### v0.5 · Deepen (built 2026-11-09)
+
+- **Calculation.** Long library puzzles (themes long / veryLong) near your level, never repeated. The board stays frozen: up to four candidates, then the full line you believe, then one deliberate look at another part of the board, then Stockfish scores where your line ends against where the best line ends. Tracks first-move accuracy, "saw it but chose otherwise" (the answer was among your candidates) and line depth. Visualization mode hides the pieces after 12 seconds.
+- **Openings.** Your repertoire is the move you play most (2+ games) in each position of your first eight moves, per colour, or a move you pin. Leaks are repertoire moves the batch analysis says lose 0.7+ pawns, with the engine's preferred move and a one-click switch. Each recent game shows where it left your repertoire. Only positions where you actually deviated become drill items, on FSRS.
+- **Master games.** Classical over-the-board games from Lichess broadcasts (public; both players 2300+, finished, 40+ plies). Games sharing one of your repertoire positions at least two moves deep come first. You guess one side's moves from move 9 for 20 moves; a guess within 0.3 pawns of the master's move (checked by Stockfish) counts as just as good.
+- **Calibration.** Every 42 days: 20 never-seen puzzles spread from your solve rating − 300 to + 300, 90 seconds each, one attempt, nothing revealed or scheduled, and no effect on the solve rating. The result is a performance rating on the puzzle scale, tracked across tests.
+- **Coach.** Claude Opus 5.5 (Anthropic SDK, structured JSON output, server-side refusal fallback `fallbacks: "default"`). The weekly review sees only a facts object gambit computes; observations whose numbers aren't in it, or that cite no real fact key, are removed before display, and the proposed split is renormalised to 100%. Explanations see only Stockfish's top three lines and the reply to your move; any point naming a move or evaluation not in those lines is removed. Everything sent and returned is stored. Off under the fair-play lock; needs the Claude key in the Keychain.
+- **Planner.** Openings and master games now get their own share instead of folding into Solve and Game Lab.
+
 ## Build order
 
 1. **v0.1 · Mirror:** import, batch analysis, Slope dashboard, one-time audit. *(built; see Build notes)*
 2. **v0.2 · Solve:** positions from your own blunders + Lichess puzzle library, solve-first, FSRS. *(built; see Build notes)*
 3. **v0.3 · Game Lab:** engine-locked post-mortems, Maia comparison, fair-play lock, guardrails. *(built; see Build notes)*
 4. **v0.4 · Train:** planner, endgames, Maia sparring, human-level labels for any opponent. *(built; see Build notes)*
-5. **v0.5 · Deepen:** calculation, openings, master games, Claude coach, calibration.
+5. **v0.5 · Deepen:** calculation, openings, master games, Claude coach, calibration. *(built; see Build notes)*

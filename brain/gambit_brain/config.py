@@ -192,3 +192,30 @@ PLANNER_REST_DAYS = [6]  # Sunday (Monday = 0)
 # (≤1500–1650 → 2000 → 2200); the Lichess column is an approximate +150–250 shift (report 07) and
 # can be overridden in Settings.
 STAGE_THRESHOLDS = {"chesscom": (1600, 2000, 2200), "lichess": (1800, 2150, 2350)}
+
+
+# ── Deepen (v0.5) ───────────────────────────────────────────────────────────────────────────────
+CALIBRATION_EVERY_DAYS = 42  # every 6–8 weeks
+CALIBRATION_SIZE = 20
+CALIBRATION_SPREAD = 300  # puzzles from your solve rating − 300 to + 300
+CALIBRATION_SECONDS = 90  # per position: solved cold and timed
+
+CALC_THEMES = ("long", "veryLong")  # puzzles whose solutions need a real line
+CALC_RATING_OFFSET = -100
+CALC_VISUAL_SECONDS = 12  # visualization mode: the pieces vanish after this long
+CALC_NODES = 400_000
+
+OPENING_PLIES = 16  # repertoire depth: your first 8 moves
+OPENING_MIN_GAMES = 2  # a move becomes your repertoire move once you've played it this often
+OPENING_LEAK_CP = 70  # a repertoire move losing this much is flagged
+
+MASTER_MIN_ELO = 2300
+MASTER_BROADCAST_PAGES = 3
+MASTER_START_PLY = 16  # guessing starts after the opening
+MASTER_MATCH_MIN_PLY = 4  # a game 'comes from your openings' only if it shares a position at least two moves deep
+MASTER_GUESS_MOVES = 20
+MASTER_AS_GOOD_CP = 30  # a guess within this of the master's move counts as just as good
+MASTER_NODES = 250_000
+
+COACH_MODEL = "claude-opus-5-5"
+COACH_MAX_TOKENS = 4000

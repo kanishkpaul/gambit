@@ -26,7 +26,7 @@ The name is always lowercase, **gambit** (repo, app, bundle and window title), i
 
 ## Layout and commands
 
-- `brain/` is the Python package `gambit_brain`: `config.py` (every tunable number), `db.py` (schema, migrations), `importers.py`, `chesslib.py`, `analysis.py` (Stockfish pool, batch job, classification), `tagger.py`, `metrics.py` (Slope), `audit.py`, `puzzles.py` (Lichess library import), `solve.py` (items, sets, grading, FSRS), `maia.py` (Maia-3, lazy), `lab.py` (Game Lab), `guardrails.py` (live-game lock, stop-loss), `endgames.py` (tablebase curriculum), `sparring.py` (Maia games), `humanlevel.py` (human-level labels), `planner.py` (Today), `server.py` (JSON-RPC methods).
+- `brain/` is the Python package `gambit_brain`: `config.py` (every tunable number), `db.py` (schema, migrations), `importers.py`, `chesslib.py`, `analysis.py` (Stockfish pool, batch job, classification), `tagger.py`, `metrics.py` (Slope), `audit.py`, `puzzles.py` (Lichess library import), `solve.py` (items, sets, grading, FSRS), `maia.py` (Maia-3, lazy), `lab.py` (Game Lab), `guardrails.py` (live-game lock, stop-loss), `endgames.py` (tablebase curriculum), `sparring.py` (Maia games), `humanlevel.py` (human-level labels), `planner.py` (Today), `calibration.py`, `calc.py` (calculation), `openings.py`, `masters.py` (master games), `coach.py` (grounded Claude coach), `server.py` (JSON-RPC methods).
 - `app/` is the Tauri shell (`src-tauri/`) and the React UI (`src/`: `views/`, `components/`, `lib/`). `lib/types.ts` mirrors the brain's response shapes; change both together.
 - Brain tests and lint: `cd brain && uv run pytest -q && uv run ruff check gambit_brain tests`
 - UI typecheck and lint: `cd app && npx tsc -b && npm run lint`
@@ -40,5 +40,6 @@ The name is always lowercase, **gambit** (repo, app, bundle and window title), i
 - Keep rating conversions, thresholds and stage allocations in one config module (`brain/gambit_brain/config.py`), not scattered constants.
 - Mirror never shows best moves or evaluations for your own positions: they become Solve items, so revealing them would spoil retrieval practice.
 - Game Lab sends no engine or Maia data until the unlock; keep it that way.
+- Coach output passes through `coach.ground_weekly` / `ground_explain` before display. Never show the model's raw text, and never pass it anything but computed facts or Stockfish lines.
 - Human-level labels are resemblances with ranges. Never present a Maia fit as a rating, and never print a number for a fit at the edge of Maia's range.
 - Solve payloads sent to the UI must never carry the solution, themes, rating or source of the current position. Grading happens in the brain.

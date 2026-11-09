@@ -140,7 +140,7 @@ export interface AuditState {
 
 export interface SolveSessionInfo {
   id: number
-  mode: 'standard' | 'speed'
+  mode: 'standard' | 'speed' | 'calibration'
   total: number
   index: number
   started_at: number
@@ -180,7 +180,7 @@ export interface SolvePosition {
   item_id: number
   index: number
   total: number
-  mode: 'standard' | 'speed'
+  mode: 'standard' | 'speed' | 'calibration'
   fen: string
   lead_uci: string | null
   played: string[]
@@ -188,10 +188,11 @@ export interface SolvePosition {
   turn: 'white' | 'black'
   elapsed_min: number
   timebox_min: number
+  time_limit_s: number | null
 }
 
 export interface SolveSummary {
-  mode: 'standard' | 'speed'
+  mode: 'standard' | 'speed' | 'calibration'
   attempted: number
   solved: number
   confident_misses: number
@@ -199,6 +200,7 @@ export interface SolveSummary {
   minutes: number
   planned: number
   solve_rating: number
+  performance?: number | null
 }
 
 export type SolveNext = SolvePosition | { done: true; reason: 'timebox' | 'complete'; summary: SolveSummary }
@@ -381,7 +383,7 @@ export interface OpponentProfile {
 }
 
 export interface PlanBlock {
-  activity: 'solving' | 'analysis' | 'endgames' | 'play'
+  activity: 'solving' | 'analysis' | 'endgames' | 'master_games' | 'openings' | 'play'
   label: string
   view: string | null
   why: string
@@ -465,4 +467,121 @@ export interface SparringOverview {
   record: SparringRecord[]
   game: SparringGame | null
   time_controls: [number, number][]
+}
+
+// ── Deepen (v0.5) ──────────────────────────────────────────────────────────────────────────────
+
+export interface CalibrationStatus {
+  history: { finished_at: number; attempted: number; solved: number; performance: number | null; mean_rating: number | null }[]
+  last: CalibrationStatus['history'][number] | null
+  due: boolean
+  next_due_at: number | null
+  every_days: number
+  size: number
+  seconds: number
+  spread: number
+  library_ready: boolean
+}
+
+export interface CalcOverview {
+  attempts: number
+  first_correct: number | null
+  saw_but_rejected: number | null
+  avg_plies_matched: number | null
+  visual_seconds: number
+  library_ready: boolean
+}
+
+export interface CalcPosition {
+  puzzle_id: string
+  mode: 'board' | 'visual'
+  start_fen: string
+  lead_uci: string
+  fen: string
+  turn: 'white' | 'black'
+  visual_seconds: number
+}
+
+export interface CalcResult {
+  first_correct: boolean
+  saw_it: boolean
+  plies_matched: number
+  line_len: number
+  stopped_at: string | null
+  your_line: string[]
+  best_line: string[]
+  best_ucis: string[]
+  your_ucis: string[]
+  end_cp: number
+  best_cp: number
+  rating: number
+  themes: string[]
+  ms: number
+  fen: string
+}
+
+export interface OpeningsOverview {
+  positions: { white: number; black: number }
+  lines: { white: { moves: string[]; games: number }[]; black: { moves: string[]; games: number }[] }
+  leaks: { color: 'white' | 'black'; fen: string; san: string; ply: number; games: number; cost: number; engine: string | null; pinned: boolean }[]
+  departures: { game_id: number; opp_name: string | null; played_at: number; result: string; color: 'white' | 'black'; event: { kind: 'new' | 'deviated'; ply: number; played: string; usual?: string } | null }[]
+  drill_due: number
+  plies: number
+}
+
+export interface DrillPosition { item_id: number; fen: string; lead_uci: string | null; turn: 'white' | 'black'; remaining: number }
+
+export interface MastersOverview {
+  games: number
+  matching: number
+  history: { started_at: number; guesses: number; matched: number; as_good: number; white: string; black: string; event: string }[]
+  moves_per_game: number
+  current: GuessView | null
+}
+
+export interface GuessView {
+  session_id: number
+  white: string
+  black: string
+  white_elo: number
+  black_elo: number
+  event: string | null
+  date: string | null
+  opening: string | null
+  side: 'white' | 'black'
+  moves: string[]
+  guesses: number
+  matched: number
+  as_good: number
+  remaining: number
+  why: 'repertoire' | 'any'
+}
+
+export interface GuessResult {
+  matched: boolean
+  as_good: boolean
+  master_uci: string
+  master_san: string
+  reply_uci: string | null
+  done: boolean
+  summary?: { guesses: number; matched: number; as_good: number; result: string; white: string; black: string; event: string | null }
+}
+
+export interface CoachWeekly {
+  created_at: number
+  facts: Record<string, unknown>
+  headline: string
+  observations: { text: string; evidence: string[] }[]
+  next_week: Record<'solving' | 'analysis' | 'endgames' | 'master_games' | 'openings' | 'play', number>
+  focus: string[]
+  removed: number
+}
+
+export interface CoachExplain {
+  summary: string
+  points: string[]
+  removed: number
+  lines: { line: string[]; eval: string }[]
+  played: string
+  played_eval: string | null
 }

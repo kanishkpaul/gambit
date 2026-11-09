@@ -29,6 +29,9 @@ from websockets.asyncio.server import ServerConnection
 from . import (
     analysis,
     audit,
+    calc,
+    calibration,
+    coach,
     config,
     db,
     endgames,
@@ -37,7 +40,9 @@ from . import (
     humanlevel,
     importers,
     lab,
+    masters,
     metrics,
+    openings,
     planner,
     puzzles,
     solve,
@@ -75,6 +80,10 @@ class Brain:
         self.spar_maia = Maia(config.MAIA_SPARRING_MODEL)
         self.sparring = sparring.Sparring(conn, self.spar_maia, self._locked)
         self.sweep_task: asyncio.Task | None = None
+        self.calc = calc.Calc(conn, self.live_analyse, self._locked)
+        self.guessing = masters.Guessing(conn, self.live_analyse, self._locked)
+        self.coach = coach.Coach(conn, self.secrets, self.live_multi, self._locked)
+        self.masters_task: asyncio.Task | None = None
         humanlevel.prune_stale(conn)
         self.import_task: asyncio.Task | None = None
         self.import_state: dict[str, Any] = {"state": "idle"}
@@ -132,6 +141,25 @@ class Brain:
             "human.opponent": lambda p: humanlevel.opponent(self.conn, str(p.get("name", ""))),
             "human.game": self.human_game,
             "human.sweep": lambda p: self.start_sweep(),
+            "calibration.status": lambda p: calibration.status(self.conn),
+            "solve.skip": lambda p: self._wrap(self.solver.skip, int(p["item_id"])),
+            "calc.overview": lambda p: self.calc.overview(),
+            "calc.next": lambda p: self._wrap(self.calc.next, str(p.get("mode", "board"))),
+            "calc.submit": lambda p: self._awrap(self.calc.submit(
+                str(p["puzzle_id"]), list(p.get("candidates", [])), str(p.get("line", "")), p.get("scan_note"))),
+            "openings.overview": self.openings_overview,
+            "openings.rebuild": lambda p: openings.rebuild(self.conn),
+            "openings.pin": lambda p: self._wrap(openings.pin, self.conn, str(p["color"]), str(p["fen"]), str(p["san"])),
+            "openings.drill_next": lambda p: openings.drill_next(self.conn),
+            "openings.drill_answer": lambda p: self._wrap(openings.drill_answer, self.conn, int(p["item_id"]), str(p["uci"])),
+            "masters.overview": lambda p: self.guessing.overview(),
+            "masters.import": self.masters_import,
+            "masters.start": lambda p: self._wrap(self.guessing.start),
+            "masters.guess": lambda p: self._awrap(self.guessing.guess(str(p["uci"]))),
+            "masters.finish": lambda p: self.guessing.finish(),
+            "coach.latest": lambda p: self.coach.latest(),
+            "coach.weekly": lambda p: self._awrap(self.coach.weekly()),
+            "coach.explain": lambda p: self._awrap(self.coach.explain(str(p["fen"]), str(p["uci"]), p.get("level"))),
             "guard.status": self.guard_status,
             "guard.tilt": self.guard_tilt,
         }
@@ -258,6 +286,27 @@ class Brain:
     def analysis_pause(self, _p=None) -> dict[str, Any]:
         self.job.pause()
         return self.job.status()
+
+    # Deepen ---------------------------------------------------------------------------------------
+    async def live_multi(self, fen: str, nodes: int, multipv: int):
+        await self.live.start()
+        return await self.live.analyse_multi(fen, nodes, multipv)
+
+    def openings_overview(self, _p=None) -> dict[str, Any]:
+        if not self.conn.execute("SELECT 1 FROM repertoire LIMIT 1").fetchone():
+            openings.rebuild(self.conn)
+        return openings.overview(self.conn)
+
+    def masters_import(self, _p=None) -> dict[str, Any]:
+        if self.masters_task is None or self.masters_task.done():
+            async def run() -> None:
+                try:
+                    res = await masters.import_broadcasts(self.conn, lambda d: self.broadcast("masters", d))
+                    await self.broadcast("masters", {"stage": "done", **res})
+                except Exception as e:  # network trouble: what arrived is kept
+                    await self.broadcast("masters", {"stage": "error", "error": f"{e.__class__.__name__}: {e}"})
+            self.masters_task = asyncio.create_task(run())
+        return {"running": True}
 
     # Train ----------------------------------------------------------------------------------------
     async def _endgame_move(self, uci: str) -> dict[str, Any]:

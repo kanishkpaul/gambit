@@ -198,6 +198,9 @@ def build_set(conn: sqlite3.Connection, mode: str, rng: random.Random | None = N
         target = int(sr + config.SPEED_RATING_OFFSET)
         with tx(conn):
             ids = [_puzzle_item(conn, p) for p in _pick_puzzles(conn, 60, target, rng)]
+    elif mode == "calibration":
+        with tx(conn):
+            ids = [_puzzle_item(conn, p) for p in _calibration_puzzles(conn, sr, rng)]
     else:
         sync_own_items(conn)
         due = [r[0] for r in conn.execute(
@@ -224,7 +227,45 @@ def build_set(conn: sqlite3.Connection, mode: str, rng: random.Random | None = N
     rows = {r["id"]: r for r in _items(conn, ids)}
     meta = [{"id": i, "theme": _primary_theme(json.loads(rows[i]["themes"])),
              "turn": _turn_after_lead(rows[i]["fen"], rows[i]["lead_uci"])} for i in ids if i in rows]
-    return [m["id"] for m in interleave(meta, rng)] if mode != "speed" else [m["id"] for m in meta]
+    return [m["id"] for m in interleave(meta, rng)] if mode == "standard" else [m["id"] for m in meta]
+
+
+def _calibration_puzzles(conn: sqlite3.Connection, sr: float, rng: random.Random) -> list[sqlite3.Row]:
+    """A fresh set spread evenly from your rating − spread to + spread, any theme, never seen before."""
+    n, spread = config.CALIBRATION_SIZE, config.CALIBRATION_SPREAD
+    out: list[sqlite3.Row] = []
+    for k in range(n):
+        target = sr - spread + k * (2 * spread / max(1, n - 1))
+        chosen = [o["id"] for o in out]
+        for widen in (40, 80, 160, 320):
+            row = conn.execute(
+                f"""SELECT p.* FROM puzzles p WHERE p.rating BETWEEN ? AND ?
+                      AND NOT EXISTS (SELECT 1 FROM items i WHERE i.kind = 'puzzle' AND i.ref = p.id)
+                      AND p.id NOT IN ({",".join("?" * len(chosen)) or "''"})
+                    ORDER BY random() LIMIT 1""", (target - widen, target + widen, *chosen)).fetchone()
+            if row:
+                out.append(row)
+                break
+    rng.shuffle(out)
+    return out
+
+
+def performance_rating(results: list[tuple[int, bool]]) -> int | None:
+    """The rating at which your expected score against these puzzle ratings equals your actual score."""
+    if not results:
+        return None
+    score = sum(ok for _, ok in results)
+    ratings = [r for r, _ in results]
+    if score == 0:
+        return min(ratings) - 400
+    if score == len(results):
+        return max(ratings) + 400
+    lo, hi = 0.0, 4000.0
+    for _ in range(60):
+        mid = (lo + hi) / 2
+        exp = sum(1 / (1 + 10 ** ((r - mid) / 400)) for r in ratings)
+        lo, hi = (mid, hi) if exp < score else (lo, mid)
+    return round((lo + hi) / 2)
 
 
 def _items(conn: sqlite3.Connection, ids: list[int]) -> list[sqlite3.Row]:
@@ -339,14 +380,15 @@ class Solver:
 
     # Sessions -------------------------------------------------------------------------------------
     def start(self, mode: str, rng: random.Random | None = None) -> dict[str, Any]:
-        if mode not in ("standard", "speed"):
+        if mode not in ("standard", "speed", "calibration"):
             raise ValueError("unknown mode")
         if self.session:
             self.end()
         queue = build_set(self.conn, mode, rng)
         if not queue:
             raise ValueError("Nothing to solve yet. Import the puzzle library or analyse some games first.")
-        timebox = config.SOLVE_TIMEBOX_MIN if mode == "standard" else config.SPEED_TIMEBOX_MIN
+        timebox = {"standard": config.SOLVE_TIMEBOX_MIN, "speed": config.SPEED_TIMEBOX_MIN,
+                   "calibration": config.CALIBRATION_SIZE * config.CALIBRATION_SECONDS // 60 + 5}[mode]
         with tx(self.conn):
             sid = self.conn.execute(
                 "INSERT INTO solve_sessions (mode, started_at, timebox_min, planned) VALUES (?,?,?,?)",
@@ -379,7 +421,8 @@ class Solver:
                 "fen": a.item["fen"], "lead_uci": a.item["lead_uci"],
                 "played": a.answer, "replies": self._replies(a),
                 "turn": _turn_after_lead(a.item["fen"], a.item["lead_uci"]),
-                "elapsed_min": round(self._elapsed_min(), 2), "timebox_min": s.timebox_min}
+                "elapsed_min": round(self._elapsed_min(), 2), "timebox_min": s.timebox_min,
+                "time_limit_s": config.CALIBRATION_SECONDS if s.mode == "calibration" else None}
 
     @staticmethod
     def _replies(a: Attempt) -> list[str]:
@@ -416,7 +459,9 @@ class Solver:
             board.push(move)
             correct = board.is_checkmate()  # any mate solves a mating puzzle (Lichess's rule)
             board.pop()
-        if not correct and item["kind"] == "own" and self.live_check is not None:
+        if s.mode == "calibration" and a.ms is not None and a.ms > (config.CALIBRATION_SECONDS + 2) * 1000:
+            correct = False  # over the time limit: a calibration answer has to come in time
+        elif not correct and item["kind"] == "own" and self.live_check is not None:
             lost = await self.live_check(board.fen(), uci)
             correct = lost is not None and lost <= config.OWN_ACCEPT_CP
         if not correct:
@@ -428,6 +473,15 @@ class Solver:
         if a.step >= len(sol):
             return self._finish(a, True)
         return {"result": "correct", "done": False, "reply_uci": reply}
+
+    def skip(self, item_id: int) -> dict[str, Any]:
+        """Time ran out on a calibration position: it counts as not solved."""
+        s = self.session
+        if s is None or s.current is None or s.current.item["id"] != item_id:
+            raise ValueError("That position isn't the current one.")
+        a = s.current
+        a.ms = a.ms or int((time.monotonic() - a.started) * 1000)
+        return self._finish(a, False)
 
     def _finish(self, a: Attempt, correct: bool) -> dict[str, Any]:
         s = self.session
@@ -449,7 +503,8 @@ class Solver:
                  " ".join(a.answer), a.line, a.ms, int(rating) if rating is not None else None),
             )
         confident_miss = not correct and a.confidence == "sure"
-        s.results.append({"correct": correct, "confident_miss": confident_miss, "ms": a.ms, "kind": item["kind"]})
+        s.results.append({"correct": correct, "confident_miss": confident_miss, "ms": a.ms, "kind": item["kind"],
+                          "rating": item["rating"]})
         s.current = None
         s.pos += 1
         return {"result": "solved" if correct else "wrong", "done": True, "reveal": self._reveal(item, card, sr),
@@ -489,12 +544,23 @@ class Solver:
         with tx(self.conn):
             self.conn.execute("UPDATE solve_sessions SET ended_at = ? WHERE id = ?", (int(time.time()), s.id))
         times = sorted(r["ms"] for r in res if r["ms"] is not None and r["correct"])
+        perf = None
+        if s.mode == "calibration" and res:
+            rated = [(r["rating"], r["correct"]) for r in res if r["rating"]]
+            perf = performance_rating(rated)
+            with tx(self.conn):
+                self.conn.execute(
+                    """INSERT INTO calibrations (session_id, started_at, finished_at, attempted, solved, performance, mean_rating)
+                       VALUES (?,?,?,?,?,?,?)""",
+                    (s.id, int(time.time() - self._elapsed_min() * 60), int(time.time()), len(res),
+                     sum(r["correct"] for r in res), perf, round(sum(r for r, _ in rated) / len(rated)) if rated else None))
         summary = {
             "mode": s.mode, "attempted": len(res), "solved": sum(r["correct"] for r in res),
             "confident_misses": sum(r["confident_miss"] for r in res),
             "median_ms": times[len(times) // 2] if times else None,
             "minutes": math.ceil(self._elapsed_min()), "planned": len(s.queue),
             "solve_rating": round(solve_rating(self.conn)["r"]),
+            "performance": perf,
         }
         self.session = None
         return summary

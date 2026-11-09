@@ -19,14 +19,13 @@ ACTIVITIES: dict[str, dict[str, Any]] = {
     "solving": {"label": "Solve", "view": "solve", "why": "Retrieval on your own blunders and the themes you miss."},
     "analysis": {"label": "Game Lab", "view": "lab", "why": "One post-mortem of a recent game, your analysis first."},
     "endgames": {"label": "Endgames", "view": "endgames", "why": "Theoretical positions against perfect defence."},
-    "master_games": {"label": "Master games", "view": None, "fallback": "solving",
-                     "why": "Arrives in v0.5; its time goes to Solve until then."},
-    "openings": {"label": "Openings", "view": None, "fallback": "analysis",
-                 "why": "Arrives in v0.5; its time goes to Game Lab until then."},
+    "master_games": {"label": "Master games", "view": "masters",
+                     "why": "Guess the moves of strong players in the structures your openings lead to."},
+    "openings": {"label": "Openings", "view": "openings", "why": "Drill only the lines where you've left your repertoire."},
     "play": {"label": "Serious play", "view": "sparring",
              "why": "Long games, online or against Maia. Games are tests; play after you study."},
 }
-STUDY_ORDER = ["solving", "endgames", "analysis"]
+STUDY_ORDER = ["solving", "endgames", "analysis", "master_games", "openings"]
 
 
 def _day_bounds(d: date) -> tuple[int, int]:
@@ -121,7 +120,7 @@ def today(conn: sqlite3.Connection, now: float | None = None) -> dict[str, Any]:
         planned = sum(b["minutes"] for b in plan_for(conn, day, st["stage"]))
         week.append({"date": day.isoformat(), "weekday": day.weekday(), "planned": planned,
                      "done": sum(minutes_done(conn, day).values()) if day <= d else None, "today": day == d})
-    folded = [ACTIVITIES[k]["label"] for k in ("master_games", "openings") if config.STAGE_ALLOCATIONS[st["stage"]].get(k)]
+    folded = [m["label"] for k, m in ACTIVITIES.items() if m.get("fallback") and config.STAGE_ALLOCATIONS[st["stage"]].get(k)]
     return {
         "date": d.isoformat(), "rest_day": not blocks, "stage": st, "blocks": blocks,
         "planned": sum(b["minutes"] for b in blocks), "done": sum(done.values()), "week": week,

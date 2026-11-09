@@ -16,6 +16,10 @@ import { GameLab } from './views/GameLab'
 import { Today } from './views/Today'
 import { Endgames } from './views/Endgames'
 import { Sparring } from './views/Sparring'
+import { Calculation } from './views/Calculation'
+import { Openings } from './views/Openings'
+import { Masters } from './views/Masters'
+import { Coach } from './views/Coach'
 
 const loadView = (): ViewId => {
   try {
@@ -65,7 +69,7 @@ export default function App() {
     brain.call<Settings>('fairplay.set', { locked: !settings?.fairplay_lock }).then(setSettings)
   }, [settings, setSettings])
 
-  // Keyboard: ⌘K palette, ⌘, settings, ⌘1–8 views.
+  // Keyboard: ⌘K palette, ⌘, settings, ⌘1–9 views.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!e.metaKey) return
@@ -75,7 +79,7 @@ export default function App() {
       } else if (e.key === ',') {
         e.preventDefault()
         setSettingsOpen(true)
-      } else if (/^[1-8]$/.test(e.key)) {
+      } else if (/^[1-9]$/.test(e.key)) {
         e.preventDefault()
         setView(VIEWS[Number(e.key) - 1].id)
       }
@@ -93,7 +97,7 @@ export default function App() {
   const actions = useMemo<PaletteAction[]>(() => {
     const running = analysis?.state === 'running'
     return [
-      ...VIEWS.map((v) => ({ id: `go-${v.id}`, label: v.label, group: 'Go to' as const, hint: v.hint, run: () => setView(v.id) })),
+      ...VIEWS.map((v) => ({ id: `go-${v.id}`, label: v.label, group: 'Go to' as const, hint: v.hint || undefined, run: () => setView(v.id) })),
       { id: 'settings', label: 'Settings', group: 'Go to', hint: '⌘,', run: () => setSettingsOpen(true) },
       { id: 'import', label: 'Check for new games', group: 'Actions', run: () => void brain.call('import.start').catch(() => {}) },
       running
@@ -116,13 +120,17 @@ export default function App() {
         )}
         {guard && guard.stop_loss.level !== 'clear' && ['today', 'mirror', 'slope'].includes(view) && <StopLoss g={guard} />}
         <AnimatePresence mode="wait">
-          <Transition key={view} id={view} fill={['solve', 'lab', 'endgames', 'sparring'].includes(view)}>
+          <Transition key={view} id={view} fill={['solve', 'lab', 'endgames', 'sparring', 'calc', 'openings', 'masters'].includes(view)}>
             {view === 'mirror' && <Mirror settings={settings} analysis={analysis} imp={imp} onSettingsChange={setSettings} />}
             {view === 'solve' && <Solve />}
             {view === 'lab' && <GameLab />}
             {view === 'today' && <Today onGo={setView} />}
             {view === 'endgames' && <Endgames />}
             {view === 'sparring' && <Sparring onGo={setView} />}
+            {view === 'calc' && <Calculation />}
+            {view === 'openings' && <Openings />}
+            {view === 'masters' && <Masters />}
+            {view === 'coach' && <Coach settings={settings} onSettings={() => setSettingsOpen(true)} />}
             {view === 'slope' && <Slope />}
             {view === 'audit' && <Audit />}
           </Transition>

@@ -8,7 +8,7 @@ import { brain } from '../lib/brain'
 import { Line, arrow } from '../lib/chess'
 import { PLATFORM, cap, date, num, pct, timeControl } from '../lib/format'
 import { useEvent, useNow, useRpc } from '../lib/hooks'
-import type { LabGames, LabReveal, LabView, RevealMove } from '../lib/types'
+import type { CoachExplain, LabGames, LabReveal, LabView, RevealMove } from '../lib/types'
 
 export function GameLab() {
   const [view, setView] = useState<LabView | null>(null)
@@ -350,8 +350,50 @@ function Annotate({ ply, san, note, moment, momentCount, max, onNote, onMoment, 
   )
 }
 
+/** The coach explains an engine-confirmed line in plain words; ungrounded points are removed in the brain. */
+function Explain({ fen, uci, level }: { fen: string; uci: string; level: number | null }) {
+  const [x, setX] = useState<CoachExplain | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  if (x)
+    return (
+      <span className="grid gap-1 border-t hairline pt-2 text-text">
+        {x.summary && <span>{x.summary}</span>}
+        {x.points.map((pt, i) => (
+          <span key={i} className="text-muted">
+            · {pt}
+          </span>
+        ))}
+        {x.removed > 0 && <span className="text-2xs text-faint">{x.removed} point{x.removed === 1 ? '' : 's'} removed: not supported by the engine’s lines.</span>}
+      </span>
+    )
+  return (
+    <span className="flex items-center gap-3">
+      <span
+        role="button"
+        tabIndex={0}
+        className="text-2xs text-muted underline-offset-2 hover:text-text hover:underline"
+        onClick={(e) => {
+          e.stopPropagation()
+          setBusy(true)
+          setErr(null)
+          brain
+            .call<CoachExplain>('coach.explain', { fen, uci, level })
+            .then(setX)
+            .catch((er: Error) => setErr(er.message))
+            .finally(() => setBusy(false))
+        }}
+      >
+        {busy ? 'The coach is reading the lines…' : 'Explain with the coach'}
+      </span>
+      {err && <span className="text-2xs text-bad">{err}</span>}
+    </span>
+  )
+}
+
 function RevealPanel({ v, r, ply, onPly, onEngine, fen }: { v: LabView; r: LabReveal; ply: number; onPly: (p: number) => void; onEngine: (fen: string) => Promise<unknown>; fen: string }) {
   const g = v.game
+  const line = new Line(g.start_fen, g.moves.map((mv) => mv.uci))
   const maia = r.maia && !('error' in r.maia && r.maia.error) ? (r.maia as Exclude<LabReveal['maia'], { error: string } | null>) : null
   const moments = [...new Set([...r.engine_moments, ...r.your_moments])].sort((a, b) => a - b)
   const [check, setCheck] = useState<{ fen: string; cp: number | null; mate: number | null; line: string[]; checks: number; nudge: boolean } | null>(null)
@@ -401,6 +443,7 @@ function RevealPanel({ v, r, ply, onPly, onEngine, fen }: { v: LabView; r: LabRe
                   Maia {num(maia.self_level)} plays {mm.top_self ?? '–'} ({pct(mm.p_self)} for yours) · Maia {num(maia.high_level)} plays {mm.top_high ?? '–'} ({pct(mm.p_high)})
                 </span>
               )}
+              {m.best_uci && m.best_uci !== m.uci && <Explain fen={line.view(p - 1).fen} uci={m.uci} level={g.my_rating} />}
             </button>
           )
         })}

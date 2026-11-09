@@ -4,12 +4,12 @@ import { Board } from '../components/Board'
 import { Figure, Header, Notice, Progress, View } from '../components/ui'
 import { brain } from '../lib/brain'
 import { Line, arrow, uciFromBoard, uciFromSan } from '../lib/chess'
-import { PLATFORM, date, days, num, themeWords, visibleThemes } from '../lib/format'
+import { PLATFORM, date, dateLong, days, num, themeWords, visibleThemes } from '../lib/format'
 import { useEvent, useNow, useRpc } from '../lib/hooks'
 import { openExternal } from '../lib/native'
-import type { MoveResult, PuzzleLibrary, Reveal, SolveNext, SolveOverview, SolvePosition, SolveSummary } from '../lib/types'
+import type { CalibrationStatus, MoveResult, PuzzleLibrary, Reveal, SolveNext, SolveOverview, SolvePosition, SolveSummary } from '../lib/types'
 
-type Mode = 'standard' | 'speed'
+type Mode = 'standard' | 'speed' | 'calibration'
 type EndReason = 'timebox' | 'complete' | 'ended'
 type Confidence = 'guess' | 'unsure' | 'sure'
 const CONFIDENCE: { value: Confidence; label: string; key: string }[] = [
@@ -92,8 +92,50 @@ function Landing({ ov, err, onStart }: { ov: SolveOverview | null; err: string |
         </div>
       )}
 
+      <Calibration onStart={() => onStart('calibration')} />
       <Library lib={lib} />
     </View>
+  )
+}
+
+function Calibration({ onStart }: { onStart: () => void }) {
+  const { data: c } = useRpc<CalibrationStatus>('calibration.status')
+  if (!c) return null
+  const daysLeft = c.next_due_at ? Math.max(0, Math.ceil((c.next_due_at - Date.now() / 1000) / 86400)) : 0
+  return (
+    <section className="card mt-12 grid gap-3 px-6 py-5">
+      <div className="flex items-center justify-between gap-6">
+        <div className="min-w-0">
+          <div className="text-xs text-muted">Calibration</div>
+          <div className="mt-0.5 text-sm">
+            {c.due ? 'A calibration test is due.' : `Next test in ${daysLeft} day${daysLeft === 1 ? '' : 's'}.`}
+            {c.last?.performance != null && (
+              <span className="text-muted">
+                {' '}
+                Last time you performed at <span className="tabular text-text">{num(c.last.performance)}</span>.
+              </span>
+            )}
+          </div>
+          <div className="mt-0.5 text-2xs text-faint">
+            {c.size} fresh positions from your level − {c.spread} to + {c.spread}, {c.seconds} seconds each, solved cold: no answers until the end, nothing scheduled, every {c.every_days} days.
+          </div>
+        </div>
+        {c.due && (
+          <button className="btn shrink-0" onClick={onStart} disabled={!c.library_ready}>
+            Start the test
+          </button>
+        )}
+      </div>
+      {c.history.length > 1 && (
+        <div className="tabular flex flex-wrap gap-x-5 gap-y-1 text-2xs text-muted">
+          {c.history.map((h) => (
+            <span key={h.finished_at}>
+              {dateLong(h.finished_at)} · <span className="text-text">{num(h.performance)}</span>
+            </span>
+          ))}
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -133,7 +175,7 @@ function Library({ lib }: { lib: PuzzleLibrary }) {
 
 // ── A running set ────────────────────────────────────────────────────────────────────────────────
 
-type Phase = 'loading' | 'lead' | 'think' | 'pending' | 'waiting' | 'revealed'
+type Phase = 'loading' | 'lead' | 'think' | 'pending' | 'waiting' | 'revealed' | 'recorded'
 
 function Session({ onDone }: { onDone: (s: SolveSummary, reason: EndReason) => void }) {
   const [pos, setPos] = useState<SolvePosition | null>(null)
@@ -222,6 +264,12 @@ function Session({ onDone }: { onDone: (s: SolveSummary, reason: EndReason) => v
             return
           }
           const solved = r.result === 'solved'
+          if (pos.mode === 'calibration') {
+            // Cold: no answer, no verdict. Move on.
+            setPhase('recorded')
+            later(load, 500)
+            return
+          }
           setReveal({ ...r.reveal, result: r.result, confidentMiss: r.confident_miss, answer: answered.current })
           setRevealPly(solved ? r.reveal.solution.length : 0)
           setPhase('revealed')
@@ -241,7 +289,7 @@ function Session({ onDone }: { onDone: (s: SolveSummary, reason: EndReason) => v
   const play = (uci: string) => {
     if (phase !== 'think' || !line) return
     setErr(null)
-    if (standard && firstMove) {
+    if (standard && firstMove && pos?.mode === 'standard') {
       setPending(uci)
       setPhase('pending')
     } else commit(uci, null)
@@ -295,6 +343,22 @@ function Session({ onDone }: { onDone: (s: SolveSummary, reason: EndReason) => v
     return { ...v, movable: phase === 'think' ? v.turn : null, shapes: [] }
   }, [phase, reveal, revealPly, line, pending])
 
+  // Calibration: each position has its own clock; when it runs out, the position counts as unsolved.
+  const [itemStart, setItemStart] = useState(() => Date.now())
+  useEffect(() => {
+    if (phase === 'think' && answered.current.length === 0) setItemStart(Date.now())
+  }, [phase, pos?.item_id])
+  const itemLeft = pos?.time_limit_s ? Math.max(0, pos.time_limit_s - (now - itemStart) / 1000) : null
+  useEffect(() => {
+    if (pos?.mode !== 'calibration' || itemLeft == null || itemLeft > 0 || (phase !== 'think' && phase !== 'lead')) return
+    setPhase('waiting')
+    brain.call('solve.skip', { item_id: pos.item_id }).then(() => {
+      setPhase('recorded')
+      later(load, 500)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemLeft, phase, pos])
+
   const orientation = pos?.turn ?? 'white'
   const remaining = pos ? Math.max(0, pos.timebox_min - (now - t0) / 60000) : 0
   const warn = standard && remaining <= 5
@@ -322,8 +386,8 @@ function Session({ onDone }: { onDone: (s: SolveSummary, reason: EndReason) => v
       <aside className="flex min-h-0 flex-col gap-6 border-l hairline bg-surface px-7 pt-[52px] pb-6">
         <div className="flex items-baseline justify-between">
           <div className="eyebrow">
-            {pos?.mode === 'speed' ? 'Speed run' : 'Solve'}
-            {pos && pos.mode === 'standard' && (
+            {pos?.mode === 'speed' ? 'Speed run' : pos?.mode === 'calibration' ? 'Calibration' : 'Solve'}
+            {pos && pos.mode !== 'speed' && (
               <span className="tabular ml-2 text-faint">
                 {pos.index + 1} of {pos.total}
               </span>
@@ -331,11 +395,11 @@ function Session({ onDone }: { onDone: (s: SolveSummary, reason: EndReason) => v
           </div>
           {pos && (
             <div className={`tabular text-xs ${warn ? 'text-bad' : 'text-muted'}`} aria-live="polite">
-              {pos.mode === 'speed' ? clock(remaining) : `${Math.ceil(remaining)} min left`}
+              {pos.mode === 'speed' ? clock(remaining) : pos.mode === 'calibration' && itemLeft != null ? clock(itemLeft / 60) : `${Math.ceil(remaining)} min left`}
             </div>
           )}
         </div>
-        {pos && pos.mode === 'standard' && <Progress value={pos.index / pos.total} />}
+        {pos && pos.mode !== 'speed' && <Progress value={pos.index / pos.total} />}
 
         <AnimatePresence mode="wait">
           <motion.div
@@ -346,7 +410,12 @@ function Session({ onDone }: { onDone: (s: SolveSummary, reason: EndReason) => v
             transition={{ duration: 0.18 }}
             className="grid gap-6"
           >
-            {phase === 'revealed' && reveal ? (
+            {phase === 'recorded' ? (
+              <div>
+                <h2 className="display m-0 text-xl">Recorded.</h2>
+                <p className="mt-2 mb-0 text-xs text-muted">Answers come at the end of the test.</p>
+              </div>
+            ) : phase === 'revealed' && reveal ? (
               <RevealPanel r={reveal} ply={revealPly} onStep={setRevealPly} typedLine={typedLine} onNext={load} />
             ) : (
               pos && (
@@ -466,6 +535,8 @@ function Prompt(props: {
             : props.firstMove
               ? pos.mode === 'speed'
                 ? 'First instinct. Your move counts as soon as you play it.'
+                : pos.mode === 'calibration'
+                ? 'One attempt, against the clock. Your move counts as soon as you play it.'
                 : 'Find the best move. Nothing is revealed until you commit.'
               : 'Correct so far. Play the next move.'}
         </p>
@@ -584,12 +655,24 @@ function Summary({ s, reason, onBack }: { s: SolveSummary; reason: EndReason; on
   return (
     <View>
       <Header
-        eyebrow={s.mode === 'speed' ? 'Speed run' : 'Solve'}
-        title={reason === 'timebox' ? 'Time’s up. Set closed.' : reason === 'complete' ? 'Set done.' : 'Set closed early.'}
+        eyebrow={s.mode === 'speed' ? 'Speed run' : s.mode === 'calibration' ? 'Calibration' : 'Solve'}
+        title={
+          s.mode === 'calibration'
+            ? s.performance != null
+              ? `You performed at ${num(s.performance)}.`
+              : 'Calibration closed.'
+            : reason === 'timebox'
+              ? 'Time’s up. Set closed.'
+              : reason === 'complete'
+                ? 'Set done.'
+                : 'Set closed early.'
+        }
         sub={
-          s.attempted
-            ? 'Positions you missed come back in about ten minutes, then on their own schedule. The ones you solved come back just before you’d forget them.'
-            : 'No positions were attempted.'
+          s.mode === 'calibration'
+            ? 'A performance rating on the Lichess puzzle scale, from fresh positions solved cold. It moves slowly; compare it across tests, not against your solve rating.'
+            : s.attempted
+              ? 'Positions you missed come back in about ten minutes, then on their own schedule. The ones you solved come back just before you’d forget them.'
+              : 'No positions were attempted.'
         }
       />
       <div className="grid grid-cols-4 gap-6 border-y hairline py-6">

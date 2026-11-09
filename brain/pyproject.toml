@@ -12,6 +12,7 @@ dependencies = [
   "maia3",
   "torch>=2.15.0",
   "numpy>=2.5.4",
+  "anthropic>=2.6.0",
 ]
 
 [dependency-groups]

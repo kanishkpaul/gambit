@@ -205,6 +205,92 @@ MIGRATIONS: list[str] = [
       PRIMARY KEY (game_id, side)
     );
     """,
+    # 5 · Deepen
+    """
+    -- Calibration: a fresh, difficulty-spread set solved cold and timed every 6–8 weeks.
+    CREATE TABLE calibrations (
+      id          INTEGER PRIMARY KEY,
+      session_id  INTEGER REFERENCES solve_sessions(id),
+      started_at  INTEGER NOT NULL,
+      finished_at INTEGER,
+      attempted   INTEGER,
+      solved      INTEGER,
+      performance INTEGER,               -- performance rating on the Lichess puzzle scale
+      mean_rating INTEGER                -- average puzzle rating of the set
+    );
+
+    CREATE TABLE calc_attempts (
+      id            INTEGER PRIMARY KEY,
+      at            INTEGER NOT NULL,
+      puzzle_id     TEXT NOT NULL,
+      mode          TEXT NOT NULL,       -- 'board' | 'visual'
+      candidates    TEXT,                -- JSON list of SAN
+      line          TEXT,                -- your main line, SAN
+      scan_note     TEXT,
+      first_correct INTEGER NOT NULL,
+      saw_it        INTEGER NOT NULL,    -- the right first move was among your candidates
+      plies_matched INTEGER NOT NULL,
+      line_len      INTEGER NOT NULL,
+      ms            INTEGER,
+      end_cp        INTEGER,             -- engine eval at the end of your line, your point of view
+      best_cp       INTEGER
+    );
+    CREATE INDEX calc_puzzle ON calc_attempts (puzzle_id);
+
+    -- Your repertoire: one move per position where it's your turn, built from your games or pinned.
+    CREATE TABLE repertoire (
+      color  TEXT NOT NULL,
+      epd    TEXT NOT NULL,
+      fen    TEXT NOT NULL,
+      uci    TEXT NOT NULL,
+      san    TEXT NOT NULL,
+      source TEXT NOT NULL,              -- 'games' | 'pinned'
+      games  INTEGER NOT NULL DEFAULT 0,
+      ply    INTEGER NOT NULL,
+      PRIMARY KEY (color, epd)
+    );
+
+    CREATE TABLE master_games (
+      id        INTEGER PRIMARY KEY,
+      source_id TEXT NOT NULL UNIQUE,    -- broadcast game URL or a hash
+      event     TEXT,
+      white     TEXT, black TEXT,
+      white_elo INTEGER, black_elo INTEGER,
+      date      TEXT,
+      result    TEXT NOT NULL,
+      eco       TEXT, opening TEXT,
+      pgn       TEXT NOT NULL,
+      ply_count INTEGER NOT NULL
+    );
+    -- Opening positions of master games, for matching your repertoire's structures.
+    CREATE TABLE master_positions (
+      epd     TEXT NOT NULL,
+      game_id INTEGER NOT NULL REFERENCES master_games(id) ON DELETE CASCADE,
+      ply     INTEGER NOT NULL,
+      PRIMARY KEY (epd, game_id)
+    );
+
+    CREATE TABLE guess_sessions (
+      id          INTEGER PRIMARY KEY,
+      game_id     INTEGER NOT NULL REFERENCES master_games(id),
+      side        TEXT NOT NULL,
+      start_ply   INTEGER NOT NULL,
+      started_at  INTEGER NOT NULL,
+      finished_at INTEGER,
+      guesses     INTEGER NOT NULL DEFAULT 0,
+      matched     INTEGER NOT NULL DEFAULT 0,
+      as_good     INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE coach_reports (
+      id         INTEGER PRIMARY KEY,
+      kind       TEXT NOT NULL,          -- 'weekly' | 'explain'
+      created_at INTEGER NOT NULL,
+      model      TEXT NOT NULL,
+      input      TEXT NOT NULL,          -- JSON: exactly what the model was given
+      output     TEXT NOT NULL           -- JSON: what it returned, after grounding checks
+    );
+    """,
 ]
 
 

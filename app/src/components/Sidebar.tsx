@@ -2,24 +2,23 @@ import type { AnalysisStatus, Settings } from '../lib/types'
 import { num } from '../lib/format'
 import { Progress } from './ui'
 
-export type ViewId = 'today' | 'solve' | 'lab' | 'endgames' | 'sparring' | 'mirror' | 'slope' | 'audit'
+export type ViewId =
+  | 'today' | 'solve' | 'calc' | 'lab' | 'endgames' | 'openings' | 'masters' | 'sparring'
+  | 'mirror' | 'slope' | 'coach' | 'audit'
 
 export const VIEWS: { id: ViewId; label: string; hint: string; group: 'train' | 'review' }[] = [
   { id: 'today', label: 'Today', hint: '⌘1', group: 'train' },
   { id: 'solve', label: 'Solve', hint: '⌘2', group: 'train' },
-  { id: 'lab', label: 'Game Lab', hint: '⌘3', group: 'train' },
-  { id: 'endgames', label: 'Endgames', hint: '⌘4', group: 'train' },
-  { id: 'sparring', label: 'Sparring', hint: '⌘5', group: 'train' },
-  { id: 'mirror', label: 'Mirror', hint: '⌘6', group: 'review' },
-  { id: 'slope', label: 'Slope', hint: '⌘7', group: 'review' },
-  { id: 'audit', label: 'Audit', hint: '⌘8', group: 'review' },
-]
-
-// The rest of the plan, shown honestly as what's next rather than as dead buttons.
-const LATER: [string, string][] = [
-  ['Calculation', '0.5'],
-  ['Openings', '0.5'],
-  ['Coach', '0.5'],
+  { id: 'calc', label: 'Calculation', hint: '⌘3', group: 'train' },
+  { id: 'lab', label: 'Game Lab', hint: '⌘4', group: 'train' },
+  { id: 'endgames', label: 'Endgames', hint: '⌘5', group: 'train' },
+  { id: 'openings', label: 'Openings', hint: '⌘6', group: 'train' },
+  { id: 'masters', label: 'Master games', hint: '⌘7', group: 'train' },
+  { id: 'sparring', label: 'Sparring', hint: '⌘8', group: 'train' },
+  { id: 'mirror', label: 'Mirror', hint: '⌘9', group: 'review' },
+  { id: 'slope', label: 'Slope', hint: '', group: 'review' },
+  { id: 'coach', label: 'Coach', hint: '', group: 'review' },
+  { id: 'audit', label: 'Audit', hint: '', group: 'review' },
 ]
 
 export function Sidebar({
@@ -57,22 +56,10 @@ export function Sidebar({
             }`}
           >
             {v.label}
-            <kbd className="border-transparent opacity-0 transition-opacity group-hover:opacity-100">{v.hint}</kbd>
+            {v.hint && <kbd className="border-transparent opacity-0 transition-opacity group-hover:opacity-100">{v.hint}</kbd>}
           </button>
         ))}
       </nav>
-
-      <div className="mt-8 px-2.5">
-        <div className="eyebrow mb-2 text-[10px] text-faint">Later</div>
-        <ul className="m-0 grid list-none gap-1 p-0">
-          {LATER.map(([name, v]) => (
-            <li key={name} className="flex justify-between text-2xs text-faint">
-              <span>{name}</span>
-              <span className="tabular">v{v}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
 
       <div className="mt-auto grid gap-4 px-2.5">
         {running && analysis && analysis.games > 0 && (
