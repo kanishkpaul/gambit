@@ -1,0 +1,4 @@
+Cmd-Q #1: shell alive=no brain=0 stockfish=0
+Close window #1: shell alive=no brain=0 stockfish=0
+Cmd-Q #2: shell alive=no brain=0 stockfish=0
+Close window #2: shell alive=no brain=0 stockfish=0

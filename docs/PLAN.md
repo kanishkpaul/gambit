@@ -42,7 +42,7 @@ gambit_brain (Python 3.12) ── SQLite · Maia (warm) · FSRS · tagger · coa
 - The brain also polls its parent PID and exits if the shell dies. Every quit path must leave zero orphans.
 - Secrets flow Rust → brain over stdin; they never enter the WebView and Python never touches the Keychain.
 - The WebSocket lets the full stack run in a normal browser during development (`uv run gambit_brain --dev` + Vite), so UI work can be verified with browser tooling.
-- Batch analysis defaults to 300k nodes per position at background priority, with deeper re-search only on critical positions.
+- Batch analysis defaults to ~100k nodes per position on 4 workers (measured: ~4 h per 2,000 games on this M5 Air), skips positions that already have a Lichess eval, and re-searches only critical moments at 1M+ nodes. See `bakeoff/RESULTS.md`.
 - The fair-play lock suspends the Stockfish pool and Maia, not just the panels.
 - Never fine-tune a model on Chess.com games (User Agreement §4(D)); use Lichess CC0 data.
 - Sign dev builds with one stable identity so the Keychain doesn't re-prompt.

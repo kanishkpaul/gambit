@@ -1,0 +1,15 @@
+[project]
+name = "gambit-bench"
+version = "0.0.1"
+requires-python = "==3.12.*"
+dependencies = [
+  "chess>=1.11.2",
+  "torch",
+  "numpy",
+  "huggingface-hub",
+  "onnxruntime",
+  "maia2",
+  "maia3 @ git+https://github.com/CSSLab/maia3",
+  "websockets",
+  "psutil",
+]

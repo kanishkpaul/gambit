@@ -1,0 +1,2 @@
+{"model": "maia2-rapid", "device": "cpu", "load_s": 130.52, "b1_p50_ms": 3.93, "b1_p95_ms": 4.28, "sample_win_prob": 0.501}
+{"model": "maia2-rapid", "device": "mps", "load_s": 0.47, "b1_p50_ms": 5.27, "b1_p95_ms": 6.42, "sample_win_prob": 0.501}

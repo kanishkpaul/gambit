@@ -1,0 +1,3 @@
+threads=1 Total time (ms) : 9685 Nodes/second    : 804997 
+threads=4 Total time (ms) : 17135 Nodes/second    : 2751271 
+threads=10 Total time (ms) : 20918 Nodes/second    : 4408406 

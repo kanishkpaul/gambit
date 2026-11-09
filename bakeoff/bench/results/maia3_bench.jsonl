@@ -1,0 +1,6 @@
+{"model": "maia3-5m", "device": "cpu", "load_s": 0.04, "b1_p50_ms": 3.1, "b1_p95_ms": 3.61, "b64_p50_ms": 79.8, "pos_per_s_b64": 802.0, "maxrss_mb": 289.0}
+{"model": "maia3-5m", "device": "mps", "load_s": 0.16, "b1_p50_ms": 7.68, "b1_p95_ms": 17.83, "b64_p50_ms": 39.6, "pos_per_s_b64": 1616.0, "maxrss_mb": 286.0}
+{"model": "maia3-23m", "device": "cpu", "load_s": 0.08, "b1_p50_ms": 6.87, "b1_p95_ms": 7.55, "b64_p50_ms": 190.3, "pos_per_s_b64": 336.0, "maxrss_mb": 457.0}
+{"model": "maia3-23m", "device": "mps", "load_s": 0.23, "b1_p50_ms": 13.32, "b1_p95_ms": 15.36, "b64_p50_ms": 113.6, "pos_per_s_b64": 564.0, "maxrss_mb": 389.0}
+{"model": "maia3-79m", "device": "cpu", "load_s": 0.22, "b1_p50_ms": 16.88, "b1_p95_ms": 17.2, "b64_p50_ms": 496.5, "pos_per_s_b64": 129.0, "maxrss_mb": 1137.0}
+{"model": "maia3-79m", "device": "mps", "load_s": 0.44, "b1_p50_ms": 33.06, "b1_p95_ms": 33.66, "b64_p50_ms": 307.2, "pos_per_s_b64": 208.0, "maxrss_mb": 550.0}

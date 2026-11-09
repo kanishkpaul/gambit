@@ -1,0 +1,4 @@
+{"workers": 4, "nodes": 300000, "positions": 400, "seconds": 77.8, "pos_per_s": 5.14, "est_hours_160k": 8.64}
+{"workers": 6, "nodes": 300000, "positions": 400, "seconds": 80.1, "pos_per_s": 4.99, "est_hours_160k": 8.9}
+{"workers": 10, "nodes": 300000, "positions": 400, "seconds": 71.2, "pos_per_s": 5.62, "est_hours_160k": 7.92}
+{"workers": 1, "nodes": 300000, "positions": 60, "seconds": 45.3, "pos_per_s": 1.32, "est_hours_160k": 33.56}

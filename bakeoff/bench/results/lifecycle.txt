@@ -1,0 +1,11 @@
+  before: brain=2 stockfish=4
+Cmd-Q: after 2s brain=2 stockfish=4
+  before: brain=2 stockfish=4
+Close window: after 2s brain=2 stockfish=4
+  before: brain=2 stockfish=4
+SIGTERM shell: after 2s brain=0 stockfish=0
+  before: brain=2 stockfish=4
+kill -9 shell: after 2s brain=0 stockfish=0
+  before: brain=2 stockfish=4
+  shell alive after quit event: yes
+Apple-event quit: after 2s brain=2 stockfish=4

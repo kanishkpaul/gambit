@@ -1,0 +1,145 @@
+@import '@lichess-org/chessground/assets/chessground.base.css';
+@import '@lichess-org/chessground/assets/chessground.cburnett.css';
+
+:root {
+  --bg: #0b0b0e;
+  --surface: #141319;
+  --surface-2: #1c1a22;
+  --line: #2a2731;
+  --text: #ece8df;
+  --muted: #a7a196;
+  --gold: #c9a86a;
+  --bad: #d9826f;
+  --walnut: #8b7355;
+  --slate: #3f434b;
+  --serif: ui-serif, 'New York', 'Iowan Old Style', Georgia, serif;
+  --sans: -apple-system, 'SF Pro Text', system-ui, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: transparent;
+  color: var(--text);
+  font: 15px/1.45 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 216px 1fr 320px;
+  height: 100%;
+}
+
+/* Sidebar sits on the native vibrancy material; everything else is opaque. */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  padding: 52px 14px 18px;
+  border-right: 1px solid rgb(255 255 255 / 0.06);
+}
+.wordmark {
+  font: 400 26px/1 var(--serif);
+  letter-spacing: 0.04em;
+  color: var(--gold);
+  padding: 0 10px 28px;
+}
+nav { display: flex; flex-direction: column; gap: 2px; }
+.nav {
+  all: unset;
+  padding: 7px 10px;
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: default;
+}
+.nav:hover { color: var(--text); background: rgb(255 255 255 / 0.04); }
+.nav.active { color: var(--text); background: rgb(255 255 255 / 0.07); }
+.nav:focus-visible { outline: 1.5px solid var(--gold); outline-offset: 1px; }
+.sidebar-foot { margin-top: auto; padding: 0 10px; font-size: 11px; letter-spacing: 0.06em; color: var(--muted); }
+
+.stage {
+  background: var(--bg);
+  display: grid;
+  place-items: center;
+  min-width: 0;
+}
+.board-frame {
+  width: min(72vh, 100%);
+  aspect-ratio: 1;
+  padding: 10px;
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line), 0 30px 80px -30px rgb(0 0 0 / 0.8);
+}
+.board { width: 100%; height: 100%; }
+
+/* Board: muted walnut on slate, no gradients on the squares. */
+.board cg-board {
+  border-radius: 2px;
+  background-color: var(--slate);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%238b7355' d='M0 0h1v1H0zM2 0h1v1H2zM4 0h1v1H4zM6 0h1v1H6zM1 1h1v1H1zM3 1h1v1H3zM5 1h1v1H5zM7 1h1v1H7zM0 2h1v1H0zM2 2h1v1H2zM4 2h1v1H4zM6 2h1v1H6zM1 3h1v1H1zM3 3h1v1H3zM5 3h1v1H5zM7 3h1v1H7zM0 4h1v1H0zM2 4h1v1H2zM4 4h1v1H4zM6 4h1v1H6zM1 5h1v1H1zM3 5h1v1H3zM5 5h1v1H5zM7 5h1v1H7zM0 6h1v1H0zM2 6h1v1H2zM4 6h1v1H4zM6 6h1v1H6zM1 7h1v1H1zM3 7h1v1H3zM5 7h1v1H5zM7 7h1v1H7z'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+}
+/* Highlights are soft inner glows, not flat fills. */
+.board cg-board square.last-move {
+  background: rgb(201 168 106 / 0.14);
+  box-shadow: inset 0 0 18px rgb(201 168 106 / 0.45);
+}
+.board cg-board square.check {
+  background: radial-gradient(circle, rgb(217 130 111 / 0.7) 0%, rgb(217 130 111 / 0) 70%);
+}
+.board cg-board square.move-dest {
+  background: radial-gradient(rgb(236 232 223 / 0.28) 18%, transparent 20%);
+}
+.board cg-board square.selected { background: rgb(201 168 106 / 0.22); }
+.board coords { font: 600 9px var(--sans); letter-spacing: 0.08em; }
+.board coords coord { color: rgb(236 232 223 / 0.55) !important; }
+
+.rail {
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  padding: 52px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-height: 0;
+}
+.eyebrow { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); }
+h1 { font: 400 26px/1.15 var(--serif); margin: 6px 0 4px; }
+.muted { color: var(--muted); margin: 0; font-size: 13px; }
+
+.moves {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font: 13px/1.9 var(--mono);
+  font-variant-numeric: tabular-nums;
+  overflow: auto;
+  flex: 1;
+}
+.moves li { display: grid; grid-template-columns: 30px 1fr 1fr; border-bottom: 1px solid rgb(255 255 255 / 0.03); }
+.moves .num { color: var(--muted); }
+
+.san { display: flex; flex-direction: column; gap: 6px; }
+.san label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.san input {
+  font: 15px var(--mono);
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  outline: none;
+  user-select: text;
+}
+.san input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgb(201 168 106 / 0.15); }
+.error { color: var(--bad); font-size: 12px; margin: 0; }
+.status { color: var(--muted); font-size: 11px; margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .board piece { transition: none; }
+}
