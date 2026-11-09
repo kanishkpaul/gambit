@@ -25,14 +25,14 @@ Decided by the stack evaluation (research report 06). Native SwiftUI is the runn
 | Review | Python | py-fsrs (FSRS-6) with optimizer |
 | Storage | Python, single writer | stdlib `sqlite3`, WAL, one file; Lichess puzzle CSV imported once |
 | APIs | Python | berserk for Lichess (personal token with `puzzle:read`; explorer needs the token); `httpx` for Chess.com PubAPI (serial, generic User-Agent, ETag) |
-| Coach | Python | Official `anthropic` SDK, `claude-opus-5-5`, structured outputs, no prefill or temperature; grounded in Stockfish output |
+| Coach | Python | A local model through Ollama (`/api/chat` with a JSON-schema `format`), chosen in Settings; free and offline; grounded in Stockfish output. (Was the Claude API until 2026-11-09; dropped: no paid services.) |
 
 ### Process architecture
 
 ```
 gambit.app (Tauri, Rust) ── reads Keychain, spawns brain, owns windows/menus
    │  spawn: uv run --frozen --project brain python -m gambit_brain
-   │  stdin: init {lichess_token, anthropic_key, ws_token}; EOF = brain exits
+   │  stdin: init {lichess_token, ws_token}; EOF = brain exits
    ▼
 WKWebView (React) ── JSON-RPC over ws://127.0.0.1:<port>?t=<ws_token>
    ▼
@@ -145,7 +145,7 @@ Switch the UI layer to native SwiftUI (keeping the brain and protocol unchanged)
 - **Openings.** Your repertoire is the move you play most (2+ games) in each position of your first eight moves, per colour, or a move you pin. Leaks are repertoire moves the batch analysis says lose 0.7+ pawns, with the engine's preferred move and a one-click switch. Each recent game shows where it left your repertoire. Only positions where you actually deviated become drill items, on FSRS.
 - **Master games.** Classical over-the-board games from Lichess broadcasts (public; both players 2300+, finished, 40+ plies). Games sharing one of your repertoire positions at least two moves deep come first. You guess one side's moves from move 9 for 20 moves; a guess within 0.3 pawns of the master's move (checked by Stockfish) counts as just as good.
 - **Calibration.** Every 42 days: 20 never-seen puzzles spread from your solve rating − 300 to + 300, 90 seconds each, one attempt, nothing revealed or scheduled, and no effect on the solve rating. The result is a performance rating on the puzzle scale, tracked across tests.
-- **Coach.** Claude Opus 5.5 (Anthropic SDK, structured JSON output, server-side refusal fallback `fallbacks: "default"`). The weekly review sees only a facts object gambit computes; observations whose numbers aren't in it, or that cite no real fact key, are removed before display, and the proposed split is renormalised to 100%. Explanations see only Stockfish's top three lines and the reply to your move; any point naming a move or evaluation not in those lines is removed. Everything sent and returned is stored. Off under the fair-play lock; needs the Claude key in the Keychain.
+- **Coach.** A local model through Ollama, picked in Settings from the installed models (originally Claude Opus 5.5; switched the same day so gambit uses no paid services). Output is constrained to a JSON schema. The weekly review sees only a facts object gambit computes; observations whose numbers aren't in it, or that cite no real fact key, are removed before display, and the proposed split is renormalised to 100%. Explanations see only Stockfish's top three lines and the reply to your move; any point naming a move or evaluation not in those lines is removed. Everything sent and returned is stored. Off under the fair-play lock; needs Ollama running with the chosen model.
 - **Planner.** Openings and master games now get their own share instead of folding into Solve and Game Lab.
 
 ## Build order
@@ -154,4 +154,4 @@ Switch the UI layer to native SwiftUI (keeping the brain and protocol unchanged)
 2. **v0.2 · Solve:** positions from your own blunders + Lichess puzzle library, solve-first, FSRS. *(built; see Build notes)*
 3. **v0.3 · Game Lab:** engine-locked post-mortems, Maia comparison, fair-play lock, guardrails. *(built; see Build notes)*
 4. **v0.4 · Train:** planner, endgames, Maia sparring, human-level labels for any opponent. *(built; see Build notes)*
-5. **v0.5 · Deepen:** calculation, openings, master games, Claude coach, calibration. *(built; see Build notes)*
+5. **v0.5 · Deepen:** calculation, openings, master games, local coach, calibration. *(built; see Build notes)*

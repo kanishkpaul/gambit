@@ -9,7 +9,7 @@ export interface Settings {
   fairplay_lock: boolean
   fairplay_reason: 'manual' | 'lichess' | null
   has_lichess_token: boolean
-  has_anthropic_key: boolean
+  coach_model: string
   engine: { workers: number; nodes: number; deep_nodes: number }
   weekly_hours?: number
   rest_days?: number[]
@@ -567,8 +567,17 @@ export interface GuessResult {
   summary?: { guesses: number; matched: number; as_good: number; result: string; white: string; black: string; event: string | null }
 }
 
+export interface CoachStatus {
+  running: boolean
+  version: string | null
+  models: { name: string; size: number | null; params: string | null; quant: string | null }[]
+  model: string | null
+  installed: boolean
+}
+
 export interface CoachWeekly {
   created_at: number
+  model: string
   facts: Record<string, unknown>
   headline: string
   observations: { text: string; evidence: string[] }[]

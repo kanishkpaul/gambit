@@ -2,7 +2,7 @@
 
 const inTauri = () => '__TAURI_INTERNALS__' in window
 
-export async function setSecret(name: 'lichess_token' | 'anthropic_key', value: string): Promise<void> {
+export async function setSecret(name: 'lichess_token', value: string): Promise<void> {
   if (!inTauri()) throw new Error('Secrets are stored in the Keychain by the app. In browser dev mode, set them as environment variables for the brain.')
   const { invoke } = await import('@tauri-apps/api/core')
   await invoke('set_secret', { name, value })

@@ -1,9 +1,9 @@
 import json
 import random
-from types import SimpleNamespace
 
 import chess
 import chess.pgn
+import httpx
 import pytest
 
 from gambit_brain import calc, calibration, coach, config, games, importers, masters, openings, puzzles, solve
@@ -150,8 +150,17 @@ def test_repertoire_departures_and_drill(conn):
 def _master_pgn(seed=1, white_elo=2550, black_elo=2500, plies=60):
     rng = random.Random(seed)
     game = chess.pgn.Game()
-    game.headers.update({"White": "Master A", "Black": "Master B", "WhiteElo": str(white_elo), "BlackElo": str(black_elo),
-                         "Result": "1-0", "Site": f"https://lichess.org/broadcast/x/{seed}", "Event": "Test Open"})
+    game.headers.update(
+        {
+            "White": "Master A",
+            "Black": "Master B",
+            "WhiteElo": str(white_elo),
+            "BlackElo": str(black_elo),
+            "Result": "1-0",
+            "Site": f"https://lichess.org/broadcast/x/{seed}",
+            "Event": "Test Open",
+        }
+    )
     node, board = game, chess.Board()
     while len(board.move_stack) < plies:
         legal = list(board.legal_moves)
@@ -196,12 +205,16 @@ async def test_master_import_filters_and_guessing(conn):
 
 def test_weekly_grounding_removes_invented_numbers():
     facts = {"blunders_per_game_recent": 0.84, "rating_rolling_mean": 1012, "solve_attempts": 120, "solve_correct": 90}
-    raw = {"headline": "A steady week at 1012.",
-           "observations": [{"text": "You solved 90 of 120 positions.", "evidence": ["solve_attempts", "solve_correct"]},
-                            {"text": "You gained 45 points.", "evidence": ["rating_rolling_mean"]},
-                            {"text": "Blunders are at 0.84 a game.", "evidence": ["made_up_key"]}],
-           "next_week": {"solving": 40, "analysis": 20, "endgames": 15, "master_games": 5, "openings": 5, "play": 25},
-           "focus": ["Check every capture.", "Win 3 games in a row with a 1500 opponent."]}
+    raw = {
+        "headline": "A steady week at 1012.",
+        "observations": [
+            {"text": "You solved 90 of 120 positions.", "evidence": ["solve_attempts", "solve_correct"]},
+            {"text": "You gained 45 points.", "evidence": ["rating_rolling_mean"]},
+            {"text": "Blunders are at 0.84 a game.", "evidence": ["made_up_key"]},
+        ],
+        "next_week": {"solving": 40, "analysis": 20, "endgames": 15, "master_games": 5, "openings": 5, "play": 25},
+        "focus": ["Check every capture.", "Win 3 games in a row with a 1500 opponent."],
+    }
     out, removed = coach.ground_weekly(raw, facts)
     assert [o["text"] for o in out["observations"]] == ["You solved 90 of 120 positions."]
     assert out["headline"] == "A steady week at 1012." and len(removed) == 3
@@ -215,39 +228,89 @@ def test_explain_grounding_removes_unlisted_moves_and_evals():
     assert out["points"] == ["After Nf3 Nc6 you're +0.35."] and len(removed) == 2
 
 
-class FakeClient:
-    def __init__(self, payload, stop_reason="end_turn"):
-        self.payload, self.stop_reason, self.calls = payload, stop_reason, []
-        self.beta = SimpleNamespace(messages=SimpleNamespace(create=self._create))
+class FakeOllama:
+    """An Ollama server in a transport: answers /api/chat with a fixed payload and records the requests."""
 
-    async def _create(self, **kw):
-        self.calls.append(kw)
-        text = SimpleNamespace(type="text", text=json.dumps(self.payload))
-        return SimpleNamespace(stop_reason=self.stop_reason, content=[text])
+    def __init__(self, payload=None, status=200, models=("qwen-test:8b",)):
+        self.payload, self.status, self.models, self.calls = payload, status, models, []
+
+    def handler(self, request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/version":
+            return httpx.Response(200, json={"version": "0.40.5"})
+        if request.url.path == "/api/tags":
+            return httpx.Response(
+                200,
+                json={
+                    "models": [
+                        {"name": m, "size": 5_000_000_000, "details": {"parameter_size": "8B", "quantization_level": "Q4_K_M"}}
+                        for m in self.models
+                    ]
+                },
+            )
+        body = json.loads(request.content)
+        self.calls.append(body)
+        if self.status != 200:
+            return httpx.Response(self.status, json={"error": f"model '{body['model']}' not found"})
+        return httpx.Response(200, json={"message": {"role": "assistant", "content": json.dumps(self.payload)}, "done": True})
+
+    def client(self) -> coach.Ollama:
+        return coach.Ollama("http://ollama.test", httpx.MockTransport(self.handler))
+
+
+def _with_model(conn, name="qwen-test:8b"):
+    from gambit_brain import db
+
+    with db.tx(conn):
+        db.set_setting(conn, "coach_model", name)
 
 
 async def test_coach_weekly_end_to_end(conn):
-    fake = FakeClient({"headline": "Quiet week.", "observations": [{"text": "No games yet.", "evidence": ["games_this_week"]}],
-                       "next_week": {"solving": 35, "analysis": 20, "endgames": 15, "master_games": 5, "openings": 5, "play": 20},
-                       "focus": []})
-    c = coach.Coach(conn, {"anthropic_key": "test"}, None, lambda: False, lambda key: fake)
+    fake = FakeOllama(
+        {
+            "headline": "Quiet week.",
+            "observations": [{"text": "No games yet.", "evidence": ["games_this_week"]}],
+            "next_week": {"solving": 35, "analysis": 20, "endgames": 15, "master_games": 5, "openings": 5, "play": 20},
+            "focus": [],
+        }
+    )
+    _with_model(conn)
+    c = coach.Coach(conn, None, lambda: False, fake.client())
     out = await c.weekly()
     assert out["headline"] == "Quiet week." and out["observations"][0]["evidence"] == ["games_this_week"]
     call = fake.calls[0]
-    assert call["model"] == config.COACH_MODEL and call["fallbacks"] == "default"
-    assert call["output_config"]["format"]["type"] == "json_schema"
-    sent = json.loads(call["messages"][0]["content"])["facts"]
-    assert sent["games_this_week"] == 0 and c.latest()["headline"] == "Quiet week."
+    assert call["model"] == "qwen-test:8b" and call["stream"] is False and call["format"] == coach.WEEKLY_SCHEMA
+    assert [m["role"] for m in call["messages"]] == ["system", "user"]
+    sent = json.loads(call["messages"][1]["content"])["facts"]
+    assert sent["games_this_week"] == 0
+    latest = c.latest()
+    assert latest["headline"] == "Quiet week." and latest["model"] == "qwen-test:8b"
 
 
-async def test_coach_needs_key_respects_lock_and_handles_refusal(conn):
-    with pytest.raises(coach.CoachError, match="API key"):
-        await coach.Coach(conn, {}, None, lambda: False).weekly()
+async def test_coach_status_and_errors(conn):
+    fake = FakeOllama({})
+    c = coach.Coach(conn, None, lambda: False, fake.client())
+    st = await c.status()
+    assert st["running"] and st["models"][0]["params"] == "8B" and st["model"] is None and not st["installed"]
+    with pytest.raises(coach.CoachError, match="Choose a local model"):
+        await c.weekly()
+    _with_model(conn)
+    assert (await c.status())["installed"]
     with pytest.raises(coach.CoachError, match="fair-play"):
-        await coach.Coach(conn, {"anthropic_key": "k"}, None, lambda: True).weekly()
-    refusing = FakeClient({}, stop_reason="refusal")
-    with pytest.raises(coach.CoachError, match="declined"):
-        await coach.Coach(conn, {"anthropic_key": "k"}, None, lambda: False, lambda key: refusing).weekly()
+        await coach.Coach(conn, None, lambda: True, fake.client()).weekly()
+    missing = FakeOllama({}, status=404)
+    with pytest.raises(coach.CoachError, match="isn't installed"):
+        await coach.Coach(conn, None, lambda: False, missing.client()).weekly()
+
+    def down(request):
+        raise httpx.ConnectError("refused", request=request)
+
+    off = coach.Ollama("http://ollama.test", httpx.MockTransport(down))
+    assert (await coach.Coach(conn, None, lambda: False, off).status())["running"] is False
+    with pytest.raises(coach.CoachError, match="isn't running"):
+        await coach.Coach(conn, None, lambda: False, off).weekly()
+    garbled = FakeOllama("not an object")
+    with pytest.raises(coach.CoachError, match="couldn't be read"):
+        await coach.Coach(conn, None, lambda: False, garbled.client()).weekly()
 
 
 async def test_coach_explain_uses_only_engine_lines(conn):
@@ -257,12 +320,10 @@ async def test_coach_explain_uses_only_engine_lines(conn):
             return [(Eval(cp=35), ["g1f3", "b8c6"]), (Eval(cp=20), ["d2d4"])]
         return [(Eval(cp=-10), ["e7e5"])]
 
-    fake = FakeClient({"summary": "Nf3 develops.", "points": ["Nf3 Nc6 is +0.35.", "Bb5 pins."]})
-    c = coach.Coach(conn, {"anthropic_key": "k"}, multi, lambda: False, lambda key: fake)
+    fake = FakeOllama({"summary": "Nf3 develops.", "points": ["Nf3 Nc6 is +0.35.", "Bb5 pins."]})
+    _with_model(conn)
+    c = coach.Coach(conn, multi, lambda: False, fake.client())
     out = await c.explain(chess.STARTING_FEN, "a2a3")
     assert out["points"] == ["Nf3 Nc6 is +0.35."] and out["removed"] == 1 and out["played"] == "a3"
-    sent = json.loads(fake.calls[0]["messages"][0]["content"])
+    sent = json.loads(fake.calls[0]["messages"][1]["content"])
     assert sent["stockfish_lines"][0] == {"line": ["Nf3", "Nc6"], "eval": "+0.35"}
-
-
-

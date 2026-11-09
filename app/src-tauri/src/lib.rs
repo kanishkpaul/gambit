@@ -1,6 +1,6 @@
 //! gambit's shell. Kept thin: windows, menus, the Keychain, and supervising the Python brain.
 //!
-//! Secrets flow Keychain → Rust → brain stdin. They never enter the WebView, and the brain never
+//! Secrets (the Lichess token) flow Keychain → Rust → brain stdin. They never enter the WebView, and the brain never
 //! touches the Keychain. The brain's stdin is also its lifeline: when the shell exits for any
 //! reason the pipe closes and the brain shuts its engines down.
 
@@ -16,7 +16,7 @@ use tauri::{Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
 use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
 
 const KEYCHAIN_SERVICE: &str = "dev.kanishkpaul.gambit";
-const SECRETS: [&str; 2] = ["lichess_token", "anthropic_key"];
+const SECRETS: [&str; 1] = ["lichess_token"];
 
 struct Brain {
   _child: Child,

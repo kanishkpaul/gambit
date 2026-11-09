@@ -3,7 +3,7 @@ import { BarList, Header, Notice, Section, View } from '../components/ui'
 import { brain } from '../lib/brain'
 import { dateLong } from '../lib/format'
 import { useRpc } from '../lib/hooks'
-import type { CoachWeekly, Settings } from '../lib/types'
+import type { CoachStatus, CoachWeekly, Settings } from '../lib/types'
 
 const LABEL: Record<string, string> = {
   solving: 'Solve', analysis: 'Game Lab', endgames: 'Endgames', master_games: 'Master games', openings: 'Openings', play: 'Serious play',
@@ -11,6 +11,7 @@ const LABEL: Record<string, string> = {
 
 export function Coach({ settings, onSettings }: { settings: Settings | null; onSettings: () => void }) {
   const { data: latest, setData } = useRpc<CoachWeekly | null>('coach.latest')
+  const { data: st, reload: recheck } = useRpc<CoachStatus>('coach.status', {}, ['settings'])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const write = () => {
@@ -19,10 +20,11 @@ export function Coach({ settings, onSettings }: { settings: Settings | null; onS
     brain
       .call<CoachWeekly>('coach.weekly')
       .then(setData)
-      .catch((e: Error) => setErr(e.message))
+      .catch((e: Error) => (setErr(e.message), recheck()))
       .finally(() => setBusy(false))
   }
-  const hasKey = settings?.has_anthropic_key
+  const model = settings?.coach_model || null
+  const ready = !!st?.running && !!model && st.installed
   return (
     <View>
       <Header
@@ -30,23 +32,41 @@ export function Coach({ settings, onSettings }: { settings: Settings | null; onS
         title={latest ? latest.headline : 'A weekly review, grounded in your numbers.'}
         sub={
           latest
-            ? `Written ${dateLong(latest.created_at)} from your last seven days.`
-            : 'Claude reads a summary of your week that gambit computes (ratings, blunders, sets, post-mortems, time against the plan) and proposes next week’s split. Any statement with a number that isn’t in your data is removed before you see it.'
+            ? `Written ${dateLong(latest.created_at)} by ${latest.model} from your last seven days.`
+            : 'A local model reads a summary of your week that gambit computes (ratings, blunders, sets, post-mortems, time against the plan) and proposes next week’s split. Any statement with a number that isn’t in your data is removed before you see it.'
         }
       />
       <div className="flex items-center gap-3">
-        {hasKey ? (
+        {!st ? (
+          <span className="text-xs text-faint">Checking Ollama…</span>
+        ) : !st.running ? (
+          <button className="btn" onClick={recheck}>
+            Check again
+          </button>
+        ) : ready ? (
           <button className="btn btn-primary" onClick={write} disabled={busy}>
-            {busy ? 'Writing…' : latest ? 'Write this week’s review' : 'Write the first review'}
+            {busy ? 'Writing… a local model takes a minute' : latest ? 'Write this week’s review' : 'Write the first review'}
           </button>
         ) : (
           <button className="btn" onClick={onSettings}>
-            Add a Claude API key in Settings
+            Choose a model in Settings
           </button>
         )}
-        <span className="text-2xs text-muted">Uses Claude Opus 5.5 through your API key. Off during a live game.</span>
+        <span className="text-2xs text-muted">
+          {!st
+            ? ''
+            : !st.running
+              ? 'Ollama isn’t running. Open the Ollama app, or run ollama serve in a terminal.'
+              : st.models.length === 0
+                ? 'Ollama has no models yet. Download one with ollama pull <name>.'
+                : model && !st.installed
+                  ? `${model} isn’t installed in Ollama any more.`
+                  : model
+                    ? `Runs ${model} on this Mac through Ollama. Free; off during a live game.`
+                    : 'Runs on this Mac through Ollama. Free; off during a live game.'}
+        </span>
       </div>
-      {err && (
+      {err && st?.running !== false && (
         <div className="mt-4">
           <Notice tone="bad">{err}</Notice>
         </div>
@@ -82,7 +102,7 @@ export function Coach({ settings, onSettings }: { settings: Settings | null; onS
             </Section>
           </div>
           <details className="mt-12 text-2xs text-muted">
-            <summary className="cursor-default">Exactly what Claude was given</summary>
+            <summary className="cursor-default">Exactly what the model was given</summary>
             <pre className="mt-3 overflow-x-auto rounded-lg border hairline bg-bg p-4 font-mono text-2xs leading-relaxed">{JSON.stringify(latest.facts, null, 2)}</pre>
           </details>
         </>

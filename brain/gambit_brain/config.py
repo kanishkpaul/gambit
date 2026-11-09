@@ -217,5 +217,9 @@ MASTER_GUESS_MOVES = 20
 MASTER_AS_GOOD_CP = 30  # a guess within this of the master's move counts as just as good
 MASTER_NODES = 250_000
 
-COACH_MODEL = "claude-opus-5-5"
-COACH_MAX_TOKENS = 4000
+# The coach runs on a local model through Ollama; which model is the `coach_model` setting.
+OLLAMA_URL = os.environ.get("GAMBIT_OLLAMA_URL", "http://127.0.0.1:11434")
+COACH_TIMEOUT = 300  # seconds; a weekly review on a small local model takes well under a minute
+COACH_KEEP_ALIVE = "5m"  # Ollama frees the model's memory this long after the last request
+COACH_TEMPERATURE = 0.2
+COACH_NUM_CTX = 8192  # the facts and prompt fit comfortably; Ollama's default window can be smaller

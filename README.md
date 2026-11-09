@@ -108,7 +108,7 @@ flowchart LR
     </td>
     <td valign="top">
       <h4>◆ Coach</h4>
-      A Claude-powered weekly review and plain-language explanations, grounded in engine output. It never invents an evaluation.
+      A weekly review and plain-language explanations from a local model (Ollama), grounded in engine output. Free, offline, and it never invents an evaluation.
     </td>
   </tr>
 </table>
@@ -120,7 +120,7 @@ flowchart LR
 - **Fair play, always.** All engine, Maia and coach features switch off while a live game is in progress. Analysis runs on finished games only.
 - **Effort over fluency.** Solve first, reveal later. A session that feels hard is usually the one that worked.
 - **Bounded by design.** Hard time limits, stopping rules for post-mortems, and a stop after a run of losses. Thoroughness gets a stopping point.
-- **Local and private.** Your games, notes and progress live in SQLite on your Mac. The only network calls go to Lichess, Chess.com and the Claude API.
+- **Local and private.** Your games, notes and progress live in SQLite on your Mac. The only network calls go to Lichess and Chess.com; the coach's model runs on the Mac. No paid services.
 - **Premium or nothing.** A board, type and motion you want to spend 30 hours a week with. See [`docs/DESIGN.md`](docs/DESIGN.md).
 
 <br>
@@ -138,9 +138,9 @@ flowchart LR
 │                                                                              │
 └──────────────┬───────────────────────┬───────────────────────┬───────────────┘
                │                       │                       │
-        Chess.com public API     Lichess API (token)      Claude API (Keychain)
+        Chess.com public API     Lichess API (token)      Ollama (local model)
         monthly PGN archives     games · puzzles ·        weekly review ·
-                                 tablebase · explorer     explanations
+                                 tablebase · broadcasts   explanations
 ```
 
 <br>
@@ -151,7 +151,7 @@ flowchart LR
 - [x] **v0.2 · Solve.** Positions from your own blunders + Lichess puzzle library, solve-first, FSRS review
 - [x] **v0.3 · Game Lab.** Engine-locked post-mortems, Maia comparison, fair-play lock, guardrails
 - [x] **v0.4 · Train.** Daily planner, endgame trainer, Maia sparring
-- [x] **v0.5 · Deepen.** Calculation trainer, openings, master games, Claude coach, calibration tests
+- [x] **v0.5 · Deepen.** Calculation trainer, openings, master games, local coach, calibration tests
 
 The full plan is in [`docs/PLAN.md`](docs/PLAN.md).
 

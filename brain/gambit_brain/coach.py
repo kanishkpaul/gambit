@@ -1,4 +1,7 @@
-"""The Claude coach: a weekly review of your metrics and plain-language explanations of engine lines.
+"""The coach: a weekly review of your metrics and plain-language explanations of engine lines.
+
+It runs on a local model through Ollama (free, on this Mac, nothing leaves it). Which model is a
+setting (`coach_model`), chosen from the ones installed in Ollama.
 
 Grounded by construction:
 - The weekly review sees only a facts object computed here, and every number it writes must be one
@@ -6,7 +9,7 @@ Grounded by construction:
 - Explanations see only Stockfish's lines for the position (SAN, with evaluations). Every move it
   names and every evaluation it quotes must appear in those lines, or the point is removed.
 Everything sent and returned is stored in coach_reports, so any statement can be traced back.
-The coach is off under the fair-play lock and needs a Claude API key in the Keychain.
+The coach is off under the fair-play lock and needs Ollama running with the chosen model installed.
 """
 
 from __future__ import annotations
@@ -18,18 +21,19 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-import anthropic
 import chess
+import httpx
 
 from . import calibration, config, metrics, planner
 from .chesslib import Eval
-from .db import tx
+from .db import get_setting, tx
 
 MultiAnalyse = Callable[[str, int, int], Awaitable[list[tuple[Eval, list[str]]]]]
 
 ACTIVITIES = ("solving", "analysis", "endgames", "master_games", "openings", "play")
 SAN_TOKEN = re.compile(
-    r"\b(?:O-O(?:-O)?|[KQRBN][a-h]?[1-8]?x?[a-h][1-8]|[a-h]x[a-h][1-8](?:=[QRBN])?|[a-h][1-8](?:=[QRBN])?)[+#]?")
+    r"\b(?:O-O(?:-O)?|[KQRBN][a-h]?[1-8]?x?[a-h][1-8]|[a-h]x[a-h][1-8](?:=[QRBN])?|[a-h][1-8](?:=[QRBN])?)[+#]?"
+)
 NUMBER = re.compile(r"(?<![\w.])[+−-]?\d+(?:[.,]\d+)?%?")
 EVAL = re.compile(r"[+−-]\d+\.\d+")
 
@@ -50,7 +54,8 @@ Ground rules:
   allocation in the facts and move at most 10 points in total, only where a fact supports it.
 - The method: shrink the error tail (blunders per game), retrieval over re-reading, study over play.
 - Tone: plain, specific, kind. No streaks, no scores out of ten, no motivational slogans, no shaming.
-- Each observation must list the fact keys it relies on in `evidence`."""
+- Each observation must list the fact keys it relies on in `evidence`.
+- Answer with a single JSON object matching the requested schema."""
 
 EXPLAIN_SYSTEM = """You explain chess positions inside gambit for an adult improver rated around the
 level given. You are given the position (FEN), the move the player chose, and Stockfish's top lines
@@ -61,7 +66,8 @@ Ground rules:
 - Quote an evaluation only if it appears in the provided lines, exactly as given.
 - Explain ideas in plain words: what the best line threatens or prevents, what the chosen move allowed.
 - Never claim anything about the position that the lines don't support; if unsure, say less.
-- At most four short points."""
+- At most four short points.
+- Answer with a single JSON object matching the requested schema."""
 
 WEEKLY_SCHEMA = {
     "type": "object",
@@ -72,23 +78,27 @@ WEEKLY_SCHEMA = {
             "items": {
                 "type": "object",
                 "properties": {"text": {"type": "string"}, "evidence": {"type": "array", "items": {"type": "string"}}},
-                "required": ["text", "evidence"], "additionalProperties": False,
+                "required": ["text", "evidence"],
+                "additionalProperties": False,
             },
         },
         "next_week": {
             "type": "object",
             "properties": {a: {"type": "integer"} for a in ACTIVITIES},
-            "required": list(ACTIVITIES), "additionalProperties": False,
+            "required": list(ACTIVITIES),
+            "additionalProperties": False,
         },
         "focus": {"type": "array", "items": {"type": "string"}},
     },
-    "required": ["headline", "observations", "next_week", "focus"], "additionalProperties": False,
+    "required": ["headline", "observations", "next_week", "focus"],
+    "additionalProperties": False,
 }
 
 EXPLAIN_SCHEMA = {
     "type": "object",
     "properties": {"summary": {"type": "string"}, "points": {"type": "array", "items": {"type": "string"}}},
-    "required": ["summary", "points"], "additionalProperties": False,
+    "required": ["summary", "points"],
+    "additionalProperties": False,
 }
 
 
@@ -120,20 +130,28 @@ def weekly_facts(conn: sqlite3.Connection, now: float | None = None) -> dict[str
         if s.get("clock"):
             facts["clock_share_left_at_move_30"] = s["clock"]["median_share_at_30"]
             facts["time_trouble_blunder_share"] = s["clock"]["time_trouble_blunder_share"]
-    g = conn.execute("SELECT COUNT(*) n, SUM(result='win') w, SUM(result='draw') d, SUM(result='loss') l FROM games "
-                     "WHERE played_at >= ? AND platform NOT IN ('pgn')", (since,)).fetchone()
+    g = conn.execute(
+        "SELECT COUNT(*) n, SUM(result='win') w, SUM(result='draw') d, SUM(result='loss') l FROM games "
+        "WHERE played_at >= ? AND platform NOT IN ('pgn')",
+        (since,),
+    ).fetchone()
     facts.update(games_this_week=g["n"], wins=g["w"] or 0, draws=g["d"] or 0, losses=g["l"] or 0)
-    r = conn.execute("SELECT COUNT(*) n, SUM(correct) ok, SUM(correct = 0 AND confidence = 'sure') cm FROM reviews "
-                     "WHERE at >= ? AND mode = 'standard'", (since,)).fetchone()
+    r = conn.execute(
+        "SELECT COUNT(*) n, SUM(correct) ok, SUM(correct = 0 AND confidence = 'sure') cm FROM reviews "
+        "WHERE at >= ? AND mode = 'standard'",
+        (since,),
+    ).fetchone()
     facts.update(solve_attempts=r["n"], solve_correct=r["ok"] or 0, confident_misses=r["cm"] or 0)
     e = conn.execute("SELECT COUNT(*) n, SUM(correct) ok FROM reviews WHERE at >= ? AND mode = 'endgame'", (since,)).fetchone()
     facts.update(endgame_attempts=e["n"], endgame_successes=e["ok"] or 0)
-    c = conn.execute("SELECT COUNT(*) n, SUM(first_correct) ok, SUM(saw_it) saw FROM calc_attempts WHERE at >= ?",
-                     (since,)).fetchone()
+    c = conn.execute(
+        "SELECT COUNT(*) n, SUM(first_correct) ok, SUM(saw_it) saw FROM calc_attempts WHERE at >= ?", (since,)
+    ).fetchone()
     facts.update(calc_attempts=c["n"], calc_first_move_correct=c["ok"] or 0, calc_saw_answer_among_candidates=c["saw"] or 0)
     facts["post_mortems_filed"] = conn.execute("SELECT COUNT(*) FROM lab_sessions WHERE closed_at >= ?", (since,)).fetchone()[0]
-    facts["lessons_this_week"] = [r[0] for r in conn.execute(
-        "SELECT text FROM lessons WHERE created_at >= ? ORDER BY id", (since,))][:6]
+    facts["lessons_this_week"] = [
+        r[0] for r in conn.execute("SELECT text FROM lessons WHERE created_at >= ? ORDER BY id", (since,))
+    ][:6]
     plan = planner.today(conn, now)
     facts["stage"] = plan["stage"]["stage"]
     facts["stage_allocation_percent"] = plan["allocation"]
@@ -205,8 +223,9 @@ def ground_weekly(out: dict[str, Any], facts: dict[str, Any]) -> tuple[dict[str,
     return {"headline": headline, "observations": obs, "next_week": mix, "focus": focus}, removed
 
 
-def ground_explain(out: dict[str, Any], lines_san: list[list[str]], evals: list[str],
-                   played: str) -> tuple[dict[str, Any], list[str]]:
+def ground_explain(
+    out: dict[str, Any], lines_san: list[list[str]], evals: list[str], played: str
+) -> tuple[dict[str, Any], list[str]]:
     moves_ok = {m.rstrip("+#") for line in lines_san for m in line} | {played.rstrip("+#")}
     evals_ok = {e.replace("−", "-") for e in evals}
     removed: list[str] = []
@@ -226,70 +245,129 @@ def ground_explain(out: dict[str, Any], lines_san: list[list[str]], evals: list[
     return {"summary": summary, "points": points}, removed
 
 
+# ── Ollama ───────────────────────────────────────────────────────────────────────────────────────
+
+
+class Ollama:
+    """The local model server. https://github.com/ollama/ollama/blob/main/docs/api.md"""
+
+    NOT_RUNNING = "Ollama isn't running. Open the Ollama app, or run ollama serve in a terminal."
+
+    def __init__(self, url: str = config.OLLAMA_URL, transport: httpx.AsyncBaseTransport | None = None):
+        self.url, self.transport = url, transport
+
+    def _http(self, timeout: float) -> httpx.AsyncClient:
+        return httpx.AsyncClient(base_url=self.url, transport=self.transport, timeout=httpx.Timeout(timeout, connect=3))
+
+    async def status(self) -> dict[str, Any]:
+        try:
+            async with self._http(5) as http:
+                version = (await http.get("/api/version")).json().get("version")
+                tags = (await http.get("/api/tags")).json().get("models", [])
+        except (httpx.HTTPError, ValueError):
+            return {"running": False, "version": None, "models": []}
+        models = [
+            {
+                "name": m["name"],
+                "size": m.get("size"),
+                "params": (m.get("details") or {}).get("parameter_size"),
+                "quant": (m.get("details") or {}).get("quantization_level"),
+            }
+            for m in tags
+            if m.get("name")
+        ]
+        return {"running": True, "version": version, "models": sorted(models, key=lambda m: m["name"])}
+
+    async def chat(self, model: str, system: str, user: str, schema: dict[str, Any]) -> dict[str, Any]:
+        body = {
+            "model": model,
+            "stream": False,
+            "format": schema,
+            "keep_alive": config.COACH_KEEP_ALIVE,
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+            "options": {"temperature": config.COACH_TEMPERATURE, "num_ctx": config.COACH_NUM_CTX},
+        }
+        try:
+            async with self._http(config.COACH_TIMEOUT) as http:
+                r = await http.post("/api/chat", json=body)
+        except httpx.ConnectError as e:
+            raise CoachError(self.NOT_RUNNING) from e
+        except httpx.TimeoutException as e:
+            raise CoachError(f"{model} took longer than {config.COACH_TIMEOUT // 60} minutes. Try a smaller model.") from e
+        except httpx.HTTPError as e:
+            raise CoachError(f"Couldn't talk to Ollama: {e}") from e
+        if r.status_code == 404:
+            raise CoachError(f"{model} isn't installed in Ollama. Choose another in Settings, or run ollama pull {model}.")
+        if r.status_code != 200:
+            try:
+                detail = r.json().get("error") or r.text
+            except ValueError:
+                detail = r.text
+            raise CoachError(f"Ollama returned an error: {detail[:200]}")
+        try:
+            out = json.loads(r.json()["message"]["content"])
+        except (ValueError, KeyError, TypeError) as e:
+            raise CoachError("The coach's answer couldn't be read. Try again.") from e
+        if not isinstance(out, dict):
+            raise CoachError("The coach's answer couldn't be read. Try again.")
+        return out
+
+
 # ── The coach ────────────────────────────────────────────────────────────────────────────────────
 
 
 class Coach:
-    def __init__(self, conn: sqlite3.Connection, secrets: dict[str, str], analyse_multi: MultiAnalyse,
-                 locked: Callable[[], bool], client_factory: Callable[[str], Any] | None = None):
-        self.conn, self.secrets, self.analyse_multi, self.locked = conn, secrets, analyse_multi, locked
-        self.client_factory = client_factory or (lambda key: anthropic.AsyncAnthropic(api_key=key))
+    def __init__(
+        self, conn: sqlite3.Connection, analyse_multi: MultiAnalyse, locked: Callable[[], bool], ollama: Ollama | None = None
+    ):
+        self.conn, self.analyse_multi, self.locked = conn, analyse_multi, locked
+        self.ollama = ollama or Ollama()
 
-    def _client(self) -> Any:
+    def model(self) -> str:
+        return (get_setting(self.conn, "coach_model") or "").strip()
+
+    async def status(self) -> dict[str, Any]:
+        st = await self.ollama.status()
+        model = self.model()
+        return {**st, "model": model or None, "installed": any(m["name"] == model for m in st["models"])}
+
+    def _ready(self) -> str:
         if self.locked():
             raise CoachError("The fair-play lock is on. The coach is off until your live game is over.")
-        key = self.secrets.get("anthropic_key")
-        if not key:
-            raise CoachError("Add a Claude API key in Settings to use the coach.")
-        return self.client_factory(key)
+        model = self.model()
+        if not model:
+            raise CoachError("Choose a local model for the coach in Settings.")
+        return model
 
-    async def _ask(self, system: str, payload: dict[str, Any], schema: dict[str, Any]) -> dict[str, Any]:
-        client = self._client()
-        try:
-            resp = await client.beta.messages.create(
-                model=config.COACH_MODEL, max_tokens=config.COACH_MAX_TOKENS, system=system,
-                messages=[{"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
-                output_config={"format": {"type": "json_schema", "schema": schema}},
-                betas=["server-side-fallback-2026-07-01"], fallbacks="default",
-            )
-        except anthropic.AuthenticationError as e:
-            raise CoachError("Claude rejected the API key. Replace it in Settings.") from e
-        except anthropic.RateLimitError as e:
-            raise CoachError("Claude is rate-limiting requests. Try again in a minute.") from e
-        except anthropic.APIConnectionError as e:
-            raise CoachError("Couldn't reach Claude. Check the connection.") from e
-        except anthropic.APIStatusError as e:
-            raise CoachError(f"Claude returned an error ({e.status_code}).") from e
-        if resp.stop_reason == "refusal":
-            raise CoachError("Claude declined this request.")
-        text = next((b.text for b in resp.content if b.type == "text"), "")
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError as e:
-            raise CoachError("The coach's answer couldn't be read. Try again.") from e
+    async def _ask(self, system: str, payload: dict[str, Any], schema: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+        model = self._ready()
+        return model, await self.ollama.chat(model, system, json.dumps(payload, ensure_ascii=False), schema)
 
-    def _store(self, kind: str, payload: dict[str, Any], output: dict[str, Any]) -> None:
+    def _store(self, kind: str, model: str, payload: dict[str, Any], output: dict[str, Any]) -> None:
         with tx(self.conn):
-            self.conn.execute("INSERT INTO coach_reports (kind, created_at, model, input, output) VALUES (?,?,?,?,?)",
-                              (kind, int(time.time()), config.COACH_MODEL, json.dumps(payload), json.dumps(output)))
+            self.conn.execute(
+                "INSERT INTO coach_reports (kind, created_at, model, input, output) VALUES (?,?,?,?,?)",
+                (kind, int(time.time()), model, json.dumps(payload), json.dumps(output)),
+            )
 
     def latest(self) -> dict[str, Any] | None:
-        r = self.conn.execute("SELECT created_at, input, output FROM coach_reports WHERE kind = 'weekly' "
-                              "ORDER BY id DESC LIMIT 1").fetchone()
+        r = self.conn.execute(
+            "SELECT created_at, model, input, output FROM coach_reports WHERE kind = 'weekly' ORDER BY id DESC LIMIT 1"
+        ).fetchone()
         if r is None:
             return None
-        return {"created_at": r["created_at"], "facts": json.loads(r["input"]), **json.loads(r["output"])}
+        return {"created_at": r["created_at"], "model": r["model"], "facts": json.loads(r["input"]), **json.loads(r["output"])}
 
     async def weekly(self) -> dict[str, Any]:
         facts = weekly_facts(self.conn)
-        raw = await self._ask(WEEKLY_SYSTEM, {"facts": facts}, WEEKLY_SCHEMA)
+        model, raw = await self._ask(WEEKLY_SYSTEM, {"facts": facts}, WEEKLY_SCHEMA)
         grounded, removed = ground_weekly(raw, facts)
         out = {**grounded, "removed": len(removed)}
-        self._store("weekly", facts, out)
-        return {"created_at": int(time.time()), "facts": facts, **out}
+        self._store("weekly", model, facts, out)
+        return {"created_at": int(time.time()), "model": model, "facts": facts, **out}
 
     async def explain(self, fen: str, played_uci: str, level: int | None = None) -> dict[str, Any]:
-        self._client()  # fail fast: key and lock
+        self._ready()  # fail fast: model and lock
         board = chess.Board(fen)
         move = chess.Move.from_uci(played_uci)
         if move not in board.legal_moves:
@@ -326,12 +404,17 @@ class Coach:
                 reply.append(b.san(m))
                 b.push(m)
             sans.append(reply)
-        payload = {"fen": fen, "side_to_move": "white" if board.turn else "black", "player_rating": level,
-                   "chosen_move": played_san, "chosen_move_eval": played_eval,
-                   "chosen_move_reply_line": sans[-1] if played_eval is not None else [],
-                   "stockfish_lines": shown}
-        raw = await self._ask(EXPLAIN_SYSTEM, payload, EXPLAIN_SCHEMA)
+        payload = {
+            "fen": fen,
+            "side_to_move": "white" if board.turn else "black",
+            "player_rating": level,
+            "chosen_move": played_san,
+            "chosen_move_eval": played_eval,
+            "chosen_move_reply_line": sans[-1] if played_eval is not None else [],
+            "stockfish_lines": shown,
+        }
+        model, raw = await self._ask(EXPLAIN_SYSTEM, payload, EXPLAIN_SCHEMA)
         grounded, removed = ground_explain(raw, sans, evals, played_san)
         out = {**grounded, "removed": len(removed), "lines": shown, "played": played_san, "played_eval": played_eval}
-        self._store("explain", payload, out)
+        self._store("explain", model, payload, out)
         return out

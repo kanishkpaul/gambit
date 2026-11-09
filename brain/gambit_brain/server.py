@@ -54,7 +54,8 @@ log = logging.getLogger("gambit.brain")
 
 Handler = Callable[[dict[str, Any]], Awaitable[Any] | Any]
 
-USER_SETTINGS = {"chesscom_username", "lichess_username", "training_start", "weekly_hours", "rest_days", "stage_override"}
+USER_SETTINGS = {"chesscom_username", "lichess_username", "training_start", "weekly_hours", "rest_days", "stage_override",
+                 "coach_model"}
 
 
 class RpcError(Exception):
@@ -82,7 +83,7 @@ class Brain:
         self.sweep_task: asyncio.Task | None = None
         self.calc = calc.Calc(conn, self.live_analyse, self._locked)
         self.guessing = masters.Guessing(conn, self.live_analyse, self._locked)
-        self.coach = coach.Coach(conn, self.secrets, self.live_multi, self._locked)
+        self.coach = coach.Coach(conn, self.live_multi, self._locked)
         self.masters_task: asyncio.Task | None = None
         humanlevel.prune_stale(conn)
         self.import_task: asyncio.Task | None = None
@@ -157,6 +158,7 @@ class Brain:
             "masters.start": lambda p: self._wrap(self.guessing.start),
             "masters.guess": lambda p: self._awrap(self.guessing.guess(str(p["uci"]))),
             "masters.finish": lambda p: self.guessing.finish(),
+            "coach.status": lambda p: self._awrap(self.coach.status()),
             "coach.latest": lambda p: self.coach.latest(),
             "coach.weekly": lambda p: self._awrap(self.coach.weekly()),
             "coach.explain": lambda p: self._awrap(self.coach.explain(str(p["fen"]), str(p["uci"]), p.get("level"))),
@@ -198,7 +200,7 @@ class Brain:
             "fairplay_lock": bool(s.get("fairplay_lock", False)),
             "fairplay_reason": s.get("fairplay_reason"),
             "has_lichess_token": bool(self.secrets.get("lichess_token")),
-            "has_anthropic_key": bool(self.secrets.get("anthropic_key")),
+            "coach_model": s.get("coach_model", ""),
             "engine": {"workers": config.BATCH.workers, "nodes": config.BATCH.nodes,
                        "deep_nodes": config.BATCH.deep_nodes},
         }

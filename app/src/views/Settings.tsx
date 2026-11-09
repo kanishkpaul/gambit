@@ -4,7 +4,7 @@ import { Notice } from '../components/ui'
 import { brain } from '../lib/brain'
 import { num } from '../lib/format'
 import { setSecret } from '../lib/native'
-import type { Settings as S } from '../lib/types'
+import type { CoachStatus, Settings as S } from '../lib/types'
 
 const toDateInput = (unix: number | null) => (unix ? new Date(unix * 1000).toISOString().slice(0, 10) : '')
 
@@ -16,7 +16,8 @@ export function SettingsSheet({ open, onClose, settings, onSaved }: { open: bool
   const [rest, setRest] = useState<number[]>([6])
   const [stageOverride, setStageOverride] = useState<number | null>(null)
   const [token, setToken] = useState('')
-  const [key, setKey] = useState('')
+  const [model, setModel] = useState('')
+  const [ollama, setOllama] = useState<CoachStatus | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -29,9 +30,18 @@ export function SettingsSheet({ open, onClose, settings, onSaved }: { open: bool
     setRest(settings.rest_days ?? [6])
     setStageOverride(settings.stage_override ?? null)
     setToken('')
-    setKey('')
+    setModel(settings.coach_model ?? '')
     setErr(null)
   }, [open, settings])
+
+  useEffect(() => {
+    if (!open) return
+    let live = true
+    brain.call<CoachStatus>('coach.status').then((st) => live && setOllama(st), () => live && setOllama(null))
+    return () => {
+      live = false
+    }
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -46,7 +56,6 @@ export function SettingsSheet({ open, onClose, settings, onSaved }: { open: bool
     setErr(null)
     try {
       if (token.trim()) await setSecret('lichess_token', token)
-      if (key.trim()) await setSecret('anthropic_key', key)
       const s = await brain.call<S>('settings.set', {
         chesscom_username: chesscom.trim(),
         lichess_username: lichess.trim(),
@@ -54,6 +63,7 @@ export function SettingsSheet({ open, onClose, settings, onSaved }: { open: bool
         weekly_hours: Math.max(1, Math.min(60, hours)),
         rest_days: rest,
         stage_override: stageOverride,
+        coach_model: model,
       })
       onSaved(s)
       onClose()
@@ -64,7 +74,7 @@ export function SettingsSheet({ open, onClose, settings, onSaved }: { open: bool
     }
   }
 
-  const removeSecret = async (name: 'lichess_token' | 'anthropic_key') => {
+  const removeSecret = async (name: 'lichess_token') => {
     setErr(null)
     try {
       await setSecret(name, '')
@@ -107,25 +117,18 @@ export function SettingsSheet({ open, onClose, settings, onSaved }: { open: bool
               <Row label="Lichess username">
                 <input className="field" value={lichess} onChange={(e) => setLichess(e.target.value)} autoComplete="off" spellCheck={false} />
               </Row>
-            </Group>
-
-            <Group title="Keys" note="Stored in the macOS Keychain. They never appear on screen again.">
               <SecretRow
                 label="Lichess token"
-                hint="Faster imports and puzzle history. Create one at lichess.org/account/oauth/token with “Read puzzle activity”."
+                hint="Optional: faster imports and puzzle history. Create one at lichess.org/account/oauth/token with “Read puzzle activity”. Kept in the macOS Keychain; it never appears on screen again."
                 saved={settings?.has_lichess_token ?? false}
                 value={token}
                 onChange={setToken}
                 onRemove={() => removeSecret('lichess_token')}
               />
-              <SecretRow
-                label="Claude API key"
-                hint="For the coach, which arrives in v0.5."
-                saved={settings?.has_anthropic_key ?? false}
-                value={key}
-                onChange={setKey}
-                onRemove={() => removeSecret('anthropic_key')}
-              />
+            </Group>
+
+            <Group title="Coach" note="A local model, run by Ollama on this Mac. Free, and nothing leaves the machine.">
+              <ModelPicker status={ollama} value={model} onChange={setModel} />
             </Group>
 
             <Group title="Training">
@@ -212,6 +215,53 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
       {children}
       {hint && <span className="text-2xs text-faint">{hint}</span>}
     </label>
+  )
+}
+
+const gb = (bytes: number | null) => (bytes ? `${(bytes / 1e9).toFixed(1)} GB` : null)
+
+function ModelPicker({ status, value, onChange }: { status: CoachStatus | null; value: string; onChange: (v: string) => void }) {
+  if (!status) return <span className="text-2xs text-faint">Checking Ollama…</span>
+  if (!status.running)
+    return (
+      <span className="text-2xs text-muted">
+        Ollama isn’t running. Open the Ollama app, or run <code className="font-mono">ollama serve</code>, then reopen Settings.
+        {value && ` The coach is set to ${value}.`}
+      </span>
+    )
+  const names = status.models.map((m) => m.name)
+  const options = [{ name: '', size: null, params: null, quant: null }, ...status.models]
+  return (
+    <div className="grid gap-1.5">
+      <div role="radiogroup" aria-label="Coach model" className="grid overflow-hidden rounded-lg border hairline">
+        {options.map((m) => {
+          const on = value === m.name
+          return (
+            <button
+              type="button"
+              role="radio"
+              aria-checked={on}
+              key={m.name || 'off'}
+              onClick={() => onChange(m.name)}
+              className={`flex items-baseline justify-between gap-4 border-b hairline px-3 py-2 text-left last:border-b-0 ${on ? 'bg-surface-2 text-text' : 'text-muted hover:text-text'}`}
+            >
+              <span className="flex items-center gap-2.5">
+                <span className={`size-1.5 rounded-full ${on ? 'bg-[var(--text)]' : 'bg-transparent'}`} aria-hidden />
+                <span className={m.name ? 'font-mono text-xs' : 'text-xs'}>{m.name || 'No coach'}</span>
+              </span>
+              <span className="tabular text-2xs text-faint">{[m.params, m.quant, gb(m.size)].filter(Boolean).join(' · ')}</span>
+            </button>
+          )
+        })}
+      </div>
+      <span className="text-2xs text-faint">
+        {status.models.length === 0
+          ? 'Ollama has no models yet. Download one with ollama pull <name>, then reopen Settings.'
+          : value && !names.includes(value)
+            ? `${value} is no longer installed in Ollama. Choose another.`
+            : 'Models of about 8B parameters fit alongside Stockfish and Maia in 16 GB.'}
+      </span>
+    </div>
   )
 }
 
