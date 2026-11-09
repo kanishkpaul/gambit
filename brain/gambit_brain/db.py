@@ -161,6 +161,37 @@ MIGRATIONS: list[str] = [
     );
     CREATE INDEX reviews_item ON reviews (item_id);
     """,
+    # 3 · Game Lab and guardrails
+    """
+    -- One post-mortem per game. The engine stays locked until you've logged your critical moments.
+    CREATE TABLE lab_sessions (
+      id          INTEGER PRIMARY KEY,
+      game_id     INTEGER NOT NULL UNIQUE REFERENCES games(id) ON DELETE CASCADE,
+      started_at  INTEGER NOT NULL,
+      unlocked_at INTEGER,
+      closed_at   INTEGER,
+      notes       TEXT NOT NULL DEFAULT '{}',   -- JSON {ply: your comment}
+      reveal      TEXT,                         -- JSON snapshot computed at unlock
+      checks      TEXT NOT NULL DEFAULT '{}'    -- JSON {epd: engine checks}, for the reassurance limiter
+    );
+
+    CREATE TABLE lab_moments (
+      session_id INTEGER NOT NULL REFERENCES lab_sessions(id) ON DELETE CASCADE,
+      ply        INTEGER NOT NULL,
+      note       TEXT NOT NULL,
+      candidate  TEXT,                          -- the move you think was better (SAN, as typed)
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (session_id, ply)
+    );
+
+    CREATE TABLE lessons (
+      id         INTEGER PRIMARY KEY,
+      source     TEXT NOT NULL,                 -- 'lab'
+      ref        TEXT,
+      text       TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    """,
 ]
 
 

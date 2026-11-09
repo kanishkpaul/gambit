@@ -9,6 +9,9 @@ dependencies = [
   "httpx>=0.28",
   "fsrs>=6.3.2",
   "zstandard>=0.25.0",
+  "maia3",
+  "torch>=2.15.0",
+  "numpy>=2.5.4",
 ]
 
 [dependency-groups]
@@ -36,3 +39,6 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
 ignore = ["SIM102", "SIM105", "SIM113"]
+
+[tool.uv.sources]
+maia3 = { git = "https://github.com/CSSLab/maia3", rev = "1e13597c42d4858b7cfd7cfdae01e297263364b2" }

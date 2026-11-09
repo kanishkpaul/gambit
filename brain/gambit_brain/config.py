@@ -145,3 +145,26 @@ MOTIF_THEMES = {
     "missed_capture": ["hangingPiece", "capturingDefender"], "lost_material": ["deflection", "attraction"],
 }
 MOTIF_BOOST = 4.0  # added to a theme's weight in proportion to the share of your blunders it explains
+
+
+# ── Game Lab and Maia (v0.3) ────────────────────────────────────────────────────────────────────
+MAIA_ANALYSIS_MODEL = "maia3-23m"  # 23M: fast on CPU and validated at 57% move match
+MAIA_SPARRING_MODEL = "maia3-79m"
+MAIA_LEVELS = range(800, 2401, 100)
+MAIA_BATCH = 256
+MAIA_MIN_MOVES = 12  # fewer of your moves than this and the band fit is noise
+MAIA_HIGHER_BY = 400  # "a stronger player": your level plus this
+DEFAULT_PLAYING_ELO = 1000  # until a rated game tells us otherwise (Chess.com rapid 400–1200 start)
+
+LAB_TIMEBOX_MIN = 45
+LAB_SOFT_WARNING_MIN = 40
+LAB_MAX_MOMENTS = 3
+LAB_MAX_LESSONS = 3
+LAB_ENGINE_NODES = 300_000  # positions the batch pass hasn't covered, analysed when you unlock
+LAB_CRITICAL_MOMENTS = 3  # the engine's biggest swings among your moves
+ENGINE_CHECK_NUDGE = 3  # repeated engine checks of one position before the reassurance nudge
+
+# ── Guardrails ──────────────────────────────────────────────────────────────────────────────────
+LICHESS_STATUS_POLL_S = 30  # live-game detection for the fair-play lock
+STOP_LOSS_CAUTION = 2  # straight losses today
+STOP_LOSS_STOP = 3

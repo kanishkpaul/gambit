@@ -7,6 +7,7 @@ export interface Settings {
   lichess_username: string
   training_start: number | null
   fairplay_lock: boolean
+  fairplay_reason: 'manual' | 'lichess' | null
   has_lichess_token: boolean
   has_anthropic_key: boolean
   engine: { workers: number; nodes: number; deep_nodes: number }
@@ -224,3 +225,118 @@ export interface Reveal {
 export type MoveResult =
   | { result: 'correct'; done: false; reply_uci: string }
   | { result: 'solved' | 'wrong'; done: true; reveal: Reveal; confident_miss: boolean }
+
+// ── Game Lab and guardrails ─────────────────────────────────────────────────────────────────────
+
+export interface LabGameRow {
+  id: number
+  platform: Platform | 'pgn'
+  played_at: number
+  time_class: string
+  time_control: string | null
+  my_color: 'white' | 'black'
+  my_rating: number | null
+  opp_name: string | null
+  opp_rating: number | null
+  result: 'win' | 'loss' | 'draw'
+  opening: string | null
+  ply_count: number
+  session_id: number | null
+  unlocked_at: number | null
+  closed_at: number | null
+}
+
+export interface LabGames {
+  games: LabGameRow[]
+  open_game_id: number | null
+  timebox_min: number
+}
+
+export interface LabMove {
+  ply: number
+  san: string
+  uci: string
+  color: 'white' | 'black'
+  clock_ms: number | null
+  spent_ms: number | null
+}
+
+export interface RevealMove {
+  ply: number
+  san: string
+  uci: string
+  color: 'white' | 'black'
+  cp_loss: number
+  class: 'best' | 'ok' | 'inaccuracy' | 'mistake' | 'blunder'
+  spent_ms: number | null
+  best_san?: string | null
+  best_uci?: string | null
+  best_line?: string[]
+}
+
+export interface LabReveal {
+  evals: number[]
+  moves: RevealMove[]
+  engine_moments: number[]
+  your_moments: number[]
+  found: number[]
+  maia:
+    | {
+        self_level: number
+        high_level: number
+        rating_used: number
+        fit: { level: number; levels: number[]; mean_logp: number[]; moves: number } | null
+        moves: { ply: number; p_self: number; p_high: number; top_self: string | null; top_high: string | null }[]
+        error?: undefined
+      }
+    | { error: string }
+    | null
+  time: {
+    moves: { ply: number; spent_s: number | null; stake: number; critical: boolean }[]
+    critical_share_of_moves: number | null
+    critical_share_of_time: number | null
+  }
+}
+
+export interface LabView {
+  session: {
+    id: number
+    state: 'annotate' | 'revealed' | 'expired' | 'closed'
+    started_at: number
+    unlocked: boolean
+    closed_at: number | null
+    timebox_min: number
+    warn_min: number
+    max_moments: number
+    max_lessons: number
+    unlocking: boolean
+  }
+  game: {
+    id: number
+    platform: Platform | 'pgn'
+    url: string | null
+    played_at: number
+    time_class: string
+    time_control: string | null
+    my_color: 'white' | 'black'
+    my_rating: number | null
+    opp_name: string | null
+    opp_rating: number | null
+    result: 'win' | 'loss' | 'draw'
+    termination: string | null
+    opening: string | null
+    start_fen: string
+    moves: LabMove[]
+  }
+  notes: Record<string, string>
+  moments: { ply: number; note: string; candidate: string | null }[]
+  reveal: LabReveal | null
+  lessons: string[]
+}
+
+export interface GuardStatus {
+  stop_loss: { level: 'clear' | 'caution' | 'stop'; streak: number; games_today: number; tilted: boolean; caution_at: number; stop_at: number }
+  lichess: { checked_at: number | null; playing: boolean | null }
+  fairplay_lock: boolean
+  fairplay_reason: 'manual' | 'lichess' | null
+}

@@ -121,10 +121,20 @@ Switch the UI layer to native SwiftUI (keeping the brain and protocol unchanged)
 - **Speed run.** 5 minutes of puzzles 300 below your solve rating; moves count immediately; no FSRS cards and no rating change.
 - **Board.** chessground with the spring-easing patch, the Staunty piece set (CC BY-NC-SA 4.0, see `app/public/pieces/NOTICE.md`), walnut on slate, typed SAN on every position.
 
+### v0.3 · Game Lab (built 2026-11-09)
+
+- **Engine locked first.** A post-mortem opens with the game only. You comment on moves and flag 1–3 critical moments (what you thought, what you'd play now). The unlock is refused until at least one moment is logged, and the view sent to the UI carries no engine or Maia data before that.
+- **Reveal.** Evaluations for every position (reusing batch analysis, filling gaps at 300k nodes), your moves classified, the engine's three costliest errors of yours against the moments you picked ("you found 1 of 3"), best lines for both, Maia-3 at your level and 400 above for each moment, the level whose Maia best explains your moves (shown as a resemblance, never a rating), and time spent against what was at stake.
+- **Maia.** Maia-3 23M through its model code on CPU, history-aware, 17 levels (800–2400) in one batched pass: about 1 s per game after a ~5 s first load. It unloads when the fair-play lock comes on.
+- **Guardrails.** 45-minute time-box (warning at 40; after it, annotations freeze and only the unlock and filing remain). Engine checks of a position you're exploring nudge you towards writing a lesson after the third. Filing needs 1–3 lessons, closes the file for good, and turns your flagged and the engine's critical positions (where you erred by ≥ 1 pawn) into Solve items. One open post-mortem at a time.
+- **Pasted PGN.** Finished games from anywhere (over-the-board included) can be pasted; unfinished games are refused.
+- **Fair-play lock.** Lichess's public status endpoint is polled every 30 s: the lock turns on during a Lichess game and off after it; a manual lock is never lifted automatically.
+- **Stop-loss.** A banner after 2 straight losses today and a stop after 3, or for the rest of the day after "that loss made me angry" (command palette).
+
 ## Build order
 
 1. **v0.1 · Mirror:** import, batch analysis, Slope dashboard, one-time audit. *(built; see Build notes)*
 2. **v0.2 · Solve:** positions from your own blunders + Lichess puzzle library, solve-first, FSRS. *(built; see Build notes)*
-3. **v0.3 · Game Lab:** engine-locked post-mortems, Maia comparison, fair-play lock, guardrails.
+3. **v0.3 · Game Lab:** engine-locked post-mortems, Maia comparison, fair-play lock, guardrails. *(built; see Build notes)*
 4. **v0.4 · Train:** planner, endgames, Maia sparring.
 5. **v0.5 · Deepen:** calculation, openings, master games, Claude coach, calibration.

@@ -50,39 +50,52 @@ def sync_own_items(conn: sqlite3.Connection) -> int:
     threatened is usually the whole point.
     """
     rows = conn.execute(
-        """SELECT m.game_id, m.ply, m.fen_before, m.motifs, e.best_uci, e.pv, e.cp, e.mate, m.color,
-                  prev.fen_before AS prev_fen, prev.uci AS prev_uci
+        """SELECT m.game_id, m.ply, m.motifs, e.best_uci, e.pv, e.cp, e.mate, m.color
            FROM moves m
            JOIN games g ON g.id = m.game_id
            JOIN evals e ON e.epd = m.epd_before
-           LEFT JOIN moves prev ON prev.game_id = m.game_id AND prev.ply = m.ply - 1
            WHERE m.class = 'blunder' AND m.color = g.my_color AND g.deep_at IS NOT NULL
              AND e.best_uci IS NOT NULL
              AND NOT EXISTS (SELECT 1 FROM items i WHERE i.kind = 'own' AND i.ref = m.game_id || ':' || m.ply)"""
     ).fetchall()
-    now, added = int(time.time()), 0
+    added = 0
     with tx(conn):
         for r in rows:
             sign = 1 if r["color"] == "white" else -1
             if sign * Eval(r["cp"], r["mate"]).clamped() < config.OWN_MIN_EVAL_BEFORE:
                 continue
-            fen, lead = (r["prev_fen"], r["prev_uci"]) if r["prev_fen"] else (r["fen_before"], None)
-            themes = r["motifs"] or "[]"
-            ref = f"{r['game_id']}:{r['ply']}"
-            conn.execute(
-                """INSERT OR IGNORE INTO items (kind, ref, fen, lead_uci, solution, reveal, themes, created_at)
-                   VALUES ('own', ?, ?, ?, ?, ?, ?, ?)""",
-                (ref, fen, lead, r["best_uci"], r["pv"], themes, now),
-            )
-            board = chess.Board(fen).mirror()
-            conn.execute(
-                """INSERT OR IGNORE INTO items (kind, ref, fen, lead_uci, solution, reveal, themes, created_at)
-                   VALUES ('own', ?, ?, ?, ?, ?, ?, ?)""",
-                (ref + ":m", board.fen(), lead and _mirror_uci(lead), _mirror_uci(r["best_uci"]),
-                 " ".join(_mirror_uci(u) for u in (r["pv"] or "").split()), themes, now),
-            )
-            added += 2
+            added += add_own_item(conn, r["game_id"], r["ply"], r["best_uci"], r["pv"], r["motifs"])
     return added
+
+
+def add_own_item(conn: sqlite3.Connection, game_id: int, ply: int, best_uci: str, pv: str | None,
+                 motifs: str | None) -> int:
+    """One position from your game (ply = your move) and its colour-mirrored twin. Call inside a transaction.
+
+    The item starts one move earlier, with the opponent's move as the lead-in. Returns items added.
+    """
+    m = conn.execute(
+        """SELECT m.fen_before, prev.fen_before AS prev_fen, prev.uci AS prev_uci FROM moves m
+           LEFT JOIN moves prev ON prev.game_id = m.game_id AND prev.ply = m.ply - 1
+           WHERE m.game_id = ? AND m.ply = ?""", (game_id, ply)).fetchone()
+    if m is None:
+        return 0
+    fen, lead = (m["prev_fen"], m["prev_uci"]) if m["prev_fen"] else (m["fen_before"], None)
+    themes, ref, now = motifs or "[]", f"{game_id}:{ply}", int(time.time())
+    pv = pv or best_uci
+    before = conn.total_changes
+    conn.execute(
+        """INSERT OR IGNORE INTO items (kind, ref, fen, lead_uci, solution, reveal, themes, created_at)
+           VALUES ('own', ?, ?, ?, ?, ?, ?, ?)""",
+        (ref, fen, lead, best_uci, pv, themes, now),
+    )
+    conn.execute(
+        """INSERT OR IGNORE INTO items (kind, ref, fen, lead_uci, solution, reveal, themes, created_at)
+           VALUES ('own', ?, ?, ?, ?, ?, ?, ?)""",
+        (ref + ":m", chess.Board(fen).mirror().fen(), lead and _mirror_uci(lead), _mirror_uci(best_uci),
+         " ".join(_mirror_uci(u) for u in pv.split()), themes, now),
+    )
+    return conn.total_changes - before
 
 
 # ── Choosing what to solve ───────────────────────────────────────────────────────────────────────

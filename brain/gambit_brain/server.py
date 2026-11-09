@@ -26,7 +26,8 @@ import chess
 import websockets
 from websockets.asyncio.server import ServerConnection
 
-from . import analysis, audit, config, db, importers, metrics, puzzles, solve
+from . import analysis, audit, config, db, games, guardrails, importers, lab, metrics, puzzles, solve
+from .maia import Maia
 
 log = logging.getLogger("gambit.brain")
 
@@ -51,6 +52,9 @@ class Brain:
         self.puzzles = puzzles.PuzzleImport(conn, lambda d: self.broadcast("puzzles", d))
         self.live = analysis.EnginePool(config.LIVE)
         self.solver = solve.Solver(conn, self.live_check)
+        self.maia = Maia()
+        self.lab = lab.Lab(conn, self.live_analyse, self.maia, self._locked, lambda d: self.broadcast("lab", d))
+        self.watcher = guardrails.LichessWatcher(conn, self.apply_lock)
         self.import_task: asyncio.Task | None = None
         self.import_state: dict[str, Any] = {"state": "idle"}
         if db.get_setting(conn, "training_start") is None:
@@ -78,7 +82,28 @@ class Brain:
             "solve.next": lambda p: self._wrap(self.solver.next),
             "solve.move": self.solve_move,
             "solve.end": lambda p: self.solver.end(),
+            "lab.games": lambda p: self.lab.games(int(p.get("limit", 40))),
+            "lab.import_pgn": self.lab_import_pgn,
+            "lab.open": lambda p: self._wrap(self.lab.open, int(p["game_id"])),
+            "lab.view": lambda p: self._wrap(self.lab.view, int(p["session_id"])),
+            "lab.note": lambda p: self._wrap(self.lab.note, int(p["session_id"]), int(p["ply"]),
+                                             str(p.get("text", ""))),
+            "lab.moment": lambda p: self._wrap(self.lab.moment, int(p["session_id"]), int(p["ply"]),
+                                               str(p.get("note", "")), p.get("candidate")),
+            "lab.moment_remove": lambda p: self._wrap(self.lab.remove_moment, int(p["session_id"]), int(p["ply"])),
+            "lab.unlock": lambda p: self._awrap(self.lab.unlock(int(p["session_id"]))),
+            "lab.engine": lambda p: self._awrap(self.lab.engine(int(p["session_id"]), str(p["fen"]))),
+            "lab.close": lambda p: self._wrap(self.lab.close, int(p["session_id"]), list(p.get("lessons", []))),
+            "guard.status": self.guard_status,
+            "guard.tilt": self.guard_tilt,
         }
+
+    @staticmethod
+    async def _awrap(coro):
+        try:
+            return await coro
+        except ValueError as e:
+            raise RpcError(str(e)) from e
 
     @staticmethod
     def _wrap(fn, *args):
@@ -102,6 +127,7 @@ class Brain:
             "lichess_username": s.get("lichess_username", ""),
             "training_start": s.get("training_start"),
             "fairplay_lock": bool(s.get("fairplay_lock", False)),
+            "fairplay_reason": s.get("fairplay_reason"),
             "has_lichess_token": bool(self.secrets.get("lichess_token")),
             "has_anthropic_key": bool(self.secrets.get("anthropic_key")),
             "engine": {"workers": config.BATCH.workers, "nodes": config.BATCH.nodes,
@@ -123,15 +149,19 @@ class Brain:
         self.secrets.update({k: v for k, v in secrets.items() if isinstance(v, str)})
 
     async def fairplay_set(self, p: dict[str, Any]) -> dict[str, Any]:
-        locked = bool(p.get("locked"))
+        await self.apply_lock(bool(p.get("locked")), "manual")
+        return self.settings_get()
+
+    async def apply_lock(self, locked: bool, reason: str) -> None:
+        """Turn the fair-play lock on or off. On: every engine and Maia stops, not just the panels."""
         with db.tx(self.conn):
             db.set_setting(self.conn, "fairplay_lock", locked)
+            db.set_setting(self.conn, "fairplay_reason", reason if locked else None)
         if locked:
-            await self.job.halt()  # kills the Stockfish pool, not just the panels
+            await self.job.halt()
             await self.live.stop()
-        out = self.settings_get()
-        await self.broadcast("settings", out)
-        return out
+            self.maia.unload()
+        await self.broadcast("settings", self.settings_get())
 
     def _locked(self) -> bool:
         return bool(db.get_setting(self.conn, "fairplay_lock", False))
@@ -184,6 +214,35 @@ class Brain:
     def analysis_pause(self, _p=None) -> dict[str, Any]:
         self.job.pause()
         return self.job.status()
+
+    # Game Lab and guardrails --------------------------------------------------------------------
+    async def live_analyse(self, fen: str, nodes: int):
+        await self.live.start()
+        return await self.live.analyse(fen, nodes)
+
+    def lab_import_pgn(self, p: dict[str, Any]) -> dict[str, Any]:
+        try:
+            meta = games.meta_from_pgn(str(p.get("pgn", "")), str(p.get("color", "")))
+        except ValueError as e:
+            raise RpcError(str(e)) from e
+        gid = games.store(self.conn, meta)
+        if gid is None:
+            row = self.conn.execute("SELECT id FROM games WHERE platform = 'pgn' AND platform_id = ?",
+                                    (meta.platform_id,)).fetchone()
+            if row is None:
+                raise RpcError("That PGN couldn't be read as a standard game.")
+            gid = row[0]
+        return self._wrap(self.lab.open, gid)
+
+    def guard_status(self, _p=None) -> dict[str, Any]:
+        return {"stop_loss": guardrails.stop_loss(self.conn), "lichess": self.watcher.last,
+                "fairplay_lock": self._locked(), "fairplay_reason": db.get_setting(self.conn, "fairplay_reason")}
+
+    async def guard_tilt(self, p: dict[str, Any]) -> dict[str, Any]:
+        guardrails.set_tilt(self.conn, bool(p.get("on", True)))
+        out = self.guard_status()
+        await self.broadcast("guard", out)
+        return out
 
     # Solve ----------------------------------------------------------------------------------------
     async def solve_move(self, p: dict[str, Any]) -> dict[str, Any]:
@@ -313,6 +372,7 @@ def _lifelines(brain: Brain, loop: asyncio.AbstractEventLoop, watch_stdin: bool)
 async def serve(port: int, token: str, secrets: dict[str, str], watch_stdin: bool) -> None:
     conn = db.connect()
     brain = Brain(conn, secrets)
+    brain.watcher.start()
     _lifelines(brain, asyncio.get_running_loop(), watch_stdin)
     async with websockets.serve(lambda ws: brain.handle(ws, token), "127.0.0.1", port, max_size=2**22):
         print(f"brain: ready on {port}", file=sys.stderr, flush=True)

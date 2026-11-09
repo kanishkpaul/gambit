@@ -78,3 +78,56 @@ def store(conn: sqlite3.Connection, meta: GameMeta) -> int | None:
             [(*r, now) for r in rows],
         )
     return gid
+
+
+# ── Pasted PGN (over-the-board games, other sites) ─────────────────────────────────────────────
+
+
+def _speed(base_s: int | None, inc_s: int | None) -> str:
+    """Lichess's speed buckets from the estimated game length (base + 40 × increment)."""
+    if base_s is None:
+        return "classical"
+    est = base_s + 40 * (inc_s or 0)
+    return "bullet" if est < 180 else "blitz" if est < 480 else "rapid" if est < 1500 else "classical"
+
+
+def meta_from_pgn(pgn: str, my_color: str) -> GameMeta:
+    """Metadata for a pasted, finished game. Raises ValueError with a user-facing message."""
+    import calendar
+    import hashlib
+
+    parsed = chesslib.parse_pgn(pgn)
+    if parsed is None or not parsed.moves:
+        raise ValueError("That PGN couldn't be read as a standard game.")
+    h = parsed.headers
+    result = h.get("Result", "*")
+    if result not in ("1-0", "0-1", "1/2-1/2"):
+        raise ValueError("Only finished games can be analysed. Add the result (1-0, 0-1 or 1/2-1/2).")
+    if my_color not in ("white", "black"):
+        raise ValueError("Say which colour you played.")
+    mine, theirs = ("White", "Black") if my_color == "white" else ("Black", "White")
+    won = (result == "1-0") == (my_color == "white")
+    tc = h.get("TimeControl")
+    base_s, inc_s = chesslib.parse_time_control(tc)
+    played_at = int(time.time())
+    for d in (h.get("UTCDate"), h.get("Date")):
+        if d and "?" not in d:
+            try:
+                played_at = calendar.timegm(time.strptime(d, "%Y.%m.%d"))
+                break
+            except ValueError:
+                pass
+
+    def rating(key: str) -> int | None:
+        v = h.get(f"{key}Elo", "")
+        return int(v) if v.isdigit() else None
+
+    digest = hashlib.sha1(" ".join(m.uci for m in parsed.moves).encode() + h.get("Date", "").encode()).hexdigest()
+    return GameMeta(
+        platform="pgn", platform_id=digest[:16], url=h.get("Site") if h.get("Site", "").startswith("http") else None,
+        played_at=played_at, time_class=_speed(base_s, inc_s), time_control=tc if base_s is not None else None,
+        rated=False, my_color=my_color, my_rating=rating(mine), opp_rating=rating(theirs),
+        opp_name=h.get(theirs) if h.get(theirs, "?") != "?" else None,
+        result="draw" if result == "1/2-1/2" else "win" if won else "loss",
+        termination=None, eco=h.get("ECO"), opening=h.get("Opening"), pgn=pgn,
+    )

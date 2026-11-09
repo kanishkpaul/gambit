@@ -2,18 +2,18 @@ import type { AnalysisStatus, Settings } from '../lib/types'
 import { num } from '../lib/format'
 import { Progress } from './ui'
 
-export type ViewId = 'mirror' | 'solve' | 'slope' | 'audit'
+export type ViewId = 'mirror' | 'solve' | 'lab' | 'slope' | 'audit'
 
 export const VIEWS: { id: ViewId; label: string; hint: string }[] = [
   { id: 'mirror', label: 'Mirror', hint: '⌘1' },
   { id: 'solve', label: 'Solve', hint: '⌘2' },
-  { id: 'slope', label: 'Slope', hint: '⌘3' },
-  { id: 'audit', label: 'Audit', hint: '⌘4' },
+  { id: 'lab', label: 'Game Lab', hint: '⌘3' },
+  { id: 'slope', label: 'Slope', hint: '⌘4' },
+  { id: 'audit', label: 'Audit', hint: '⌘5' },
 ]
 
 // The rest of the plan, shown honestly as what's next rather than as dead buttons.
 const LATER: [string, string][] = [
-  ['Game Lab', '0.3'],
   ['Endgames', '0.4'],
   ['Sparring', '0.4'],
   ['Planner', '0.4'],
@@ -95,7 +95,9 @@ export function Sidebar({
         >
           <span className="grid">
             <span className="text-xs text-text">Fair-play lock</span>
-            <span className="text-2xs text-muted">{locked ? 'On · engines stopped' : 'Off'}</span>
+            <span className="text-2xs text-muted">
+              {locked ? (settings?.fairplay_reason === 'lichess' ? 'On · Lichess game in progress' : 'On · engines stopped') : 'Off'}
+            </span>
           </span>
           <span className={`relative h-[18px] w-[30px] shrink-0 rounded-full transition-colors duration-200 ${locked ? 'bg-[var(--text)]' : 'bg-[var(--line)]'}`}>
             <span
