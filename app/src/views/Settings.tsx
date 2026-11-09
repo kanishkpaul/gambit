@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState } from 'react'
-import { Notice } from '../components/ui'
+import { Notice, Segmented } from '../components/ui'
 import { brain } from '../lib/brain'
 import { num } from '../lib/format'
 import { setSecret } from '../lib/native'
@@ -88,7 +88,7 @@ export function SettingsSheet({ open, onClose, settings, onSaved }: { open: bool
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-40 flex items-start justify-center bg-[rgb(0_0_0/0.32)] pt-[10vh]"
+          className="fixed inset-0 z-40 flex items-start justify-center bg-[rgb(0_0_0/0.18)] pt-[8vh]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -99,89 +99,79 @@ export function SettingsSheet({ open, onClose, settings, onSaved }: { open: bool
             onSubmit={save}
             role="dialog"
             aria-label="Settings"
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 4 }}
-            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="card max-h-[80vh] w-[560px] overflow-y-auto"
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="sheet flex max-h-[84vh] w-[580px] flex-col overflow-hidden"
           >
-            <div className="flex items-baseline justify-between border-b hairline px-7 pt-6 pb-4">
-              <h2 className="display m-0 text-lg">Settings</h2>
-              <kbd>esc</kbd>
+            <div className="flex h-[48px] shrink-0 items-center justify-center border-b hairline">
+              <h2 className="m-0 text-sm font-semibold">Settings</h2>
             </div>
 
-            <Group title="Accounts">
-              <Row label="Chess.com username">
-                <input className="field" value={chesscom} onChange={(e) => setChesscom(e.target.value)} autoComplete="off" spellCheck={false} autoFocus />
-              </Row>
-              <Row label="Lichess username">
-                <input className="field" value={lichess} onChange={(e) => setLichess(e.target.value)} autoComplete="off" spellCheck={false} />
-              </Row>
-              <SecretRow
-                label="Lichess token"
-                hint="Optional: faster imports and puzzle history. Create one at lichess.org/account/oauth/token with “Read puzzle activity”. Kept in the macOS Keychain; it never appears on screen again."
-                saved={settings?.has_lichess_token ?? false}
-                value={token}
-                onChange={setToken}
-                onRemove={() => removeSecret('lichess_token')}
-              />
-            </Group>
+            <div className="grid gap-6 overflow-y-auto px-6 pt-5 pb-6">
+              <Group title="Accounts">
+                <Row label="Chess.com username">
+                  <input className="field w-[240px]" value={chesscom} onChange={(e) => setChesscom(e.target.value)} autoComplete="off" spellCheck={false} autoFocus placeholder="None" />
+                </Row>
+                <Row label="Lichess username">
+                  <input className="field w-[240px]" value={lichess} onChange={(e) => setLichess(e.target.value)} autoComplete="off" spellCheck={false} placeholder="None" />
+                </Row>
+                <SecretRow
+                  label="Lichess token"
+                  hint="Optional: faster imports and puzzle history. Create one at lichess.org/account/oauth/token with “Read puzzle activity”. Kept in the macOS Keychain."
+                  saved={settings?.has_lichess_token ?? false}
+                  value={token}
+                  onChange={setToken}
+                  onRemove={() => removeSecret('lichess_token')}
+                />
+              </Group>
 
-            <Group title="Coach" note="A local model, run by Ollama on this Mac. Free, and nothing leaves the machine.">
-              <ModelPicker status={ollama} value={model} onChange={setModel} />
-            </Group>
+              <Group title="Coach" note="A local model, run by Ollama on this Mac. Free, and nothing leaves the machine.">
+                <ModelPicker status={ollama} value={model} onChange={setModel} />
+              </Group>
 
-            <Group title="Training">
-              <Row label="Training started" hint="Gate 0 measures your progress from this date.">
-                <input type="date" className="field tabular" value={start} onChange={(e) => setStart(e.target.value)} />
-              </Row>
-              <Row label="Hours a week" hint="The plan spreads these over your training days.">
-                <input type="number" min={1} max={60} className="field tabular w-28" value={hours} onChange={(e) => setHours(Number(e.target.value))} />
-              </Row>
-              <div className="grid gap-1.5">
-                <span className="text-xs text-muted">Rest days</span>
-                <div className="flex gap-1.5">
-                  {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
-                    <button
-                      type="button"
-                      key={i}
-                      aria-pressed={rest.includes(i)}
-                      onClick={() => setRest((r) => (r.includes(i) ? r.filter((x) => x !== i) : [...r, i].sort()))}
-                      className={`size-8 rounded-md border text-xs ${rest.includes(i) ? 'border-[var(--text)] bg-surface-2 text-text' : 'hairline text-muted'}`}
-                    >
-                      {d}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="grid gap-1.5">
-                <span className="text-xs text-muted">Stage</span>
-                <div className="flex gap-1.5">
-                  {[null, 1, 2, 3, 4].map((st) => (
-                    <button
-                      type="button"
-                      key={String(st)}
-                      aria-pressed={stageOverride === st}
-                      onClick={() => setStageOverride(st)}
-                      className={`h-8 rounded-md border px-3 text-xs ${stageOverride === st ? 'border-[var(--text)] bg-surface-2 text-text' : 'hairline text-muted'}`}
-                    >
-                      {st ?? 'From my rating'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {settings && (
-                <p className="m-0 text-2xs text-faint">
-                  Analysis runs {settings.engine.workers} Stockfish workers at {num(settings.engine.nodes)} nodes a position, and re-checks your blunders at{' '}
-                  {num(settings.engine.deep_nodes)}.
-                </p>
-              )}
-            </Group>
+              <Group
+                title="Training"
+                note={settings ? `Analysis runs ${settings.engine.workers} Stockfish workers at ${num(settings.engine.nodes)} nodes a position, and re-checks your blunders at ${num(settings.engine.deep_nodes)}.` : undefined}
+              >
+                <Row label="Training started" hint="Gate 0 measures your progress from this date.">
+                  <input type="date" className="field tabular w-[160px]" value={start} onChange={(e) => setStart(e.target.value)} />
+                </Row>
+                <Row label="Hours a week" hint="Spread over your training days.">
+                  <input type="number" min={1} max={60} className="field tabular w-[72px] text-right" value={hours} onChange={(e) => setHours(Number(e.target.value))} />
+                </Row>
+                <Row label="Rest days" as="div">
+                  <div className="inline-flex rounded-[8px] bg-[var(--active)] p-[2px]" role="group" aria-label="Rest days">
+                    {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+                      <button
+                        type="button"
+                        key={i}
+                        aria-pressed={rest.includes(i)}
+                        aria-label={['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][i]}
+                        onClick={() => setRest((r) => (r.includes(i) ? r.filter((x) => x !== i) : [...r, i].sort()))}
+                        className={`h-6 w-7 rounded-[6px] text-sm ${rest.includes(i) ? 'bg-accent font-medium text-white' : 'text-muted hover:text-text'}`}
+                      >
+                        {d}
+                      </button>
+                    ))}
+                  </div>
+                </Row>
+                <Row label="Stage" as="div">
+                  <Segmented
+                    label="Stage"
+                    value={stageOverride == null ? 'auto' : String(stageOverride)}
+                    options={[{ value: 'auto', label: 'Auto' }, ...[1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n) }))]}
+                    onChange={(v) => setStageOverride(v === 'auto' ? null : Number(v))}
+                  />
+                </Row>
+              </Group>
+            </div>
 
-            <div className="flex items-center justify-between gap-4 border-t hairline px-7 py-4">
+            <div className="flex shrink-0 items-center justify-between gap-4 border-t hairline px-6 py-3">
               <div className="min-w-0">{err && <Notice tone="bad">{err}</Notice>}</div>
               <div className="flex shrink-0 gap-2">
-                <button type="button" className="btn btn-quiet" onClick={onClose}>
+                <button type="button" className="btn" onClick={onClose}>
                   Cancel
                 </button>
                 <button className="btn btn-primary" disabled={busy}>
@@ -196,44 +186,47 @@ export function SettingsSheet({ open, onClose, settings, onSaved }: { open: bool
   )
 }
 
+/** An inset group box with a title above and a footnote below, like System Settings. */
 function Group({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
   return (
-    <section className="grid gap-4 px-7 py-5">
-      <div>
-        <h3 className="eyebrow m-0">{title}</h3>
-        {note && <p className="mt-1 mb-0 text-2xs text-faint">{note}</p>}
-      </div>
-      {children}
+    <section className="grid gap-1.5">
+      <h3 className="m-0 px-1 text-sm font-semibold">{title}</h3>
+      <div className="group-box divide-y divide-[var(--line)] px-3">{children}</div>
+      {note && <p className="m-0 px-1 text-2xs text-muted">{note}</p>}
     </section>
   )
 }
 
-function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+/** One form row: label (and hint) on the left, the control on the right. */
+function Row({ label, hint, children, as = 'label' }: { label: string; hint?: string; children: React.ReactNode; as?: 'label' | 'div' }) {
+  const Tag = as
   return (
-    <label className="grid gap-1.5">
-      <span className="text-xs text-muted">{label}</span>
-      {children}
-      {hint && <span className="text-2xs text-faint">{hint}</span>}
-    </label>
+    <Tag className="flex min-h-[44px] items-center justify-between gap-6 py-2">
+      <span className="grid min-w-0">
+        <span className="text-sm">{label}</span>
+        {hint && <span className="text-2xs text-muted">{hint}</span>}
+      </span>
+      <span className="shrink-0">{children}</span>
+    </Tag>
   )
 }
 
 const gb = (bytes: number | null) => (bytes ? `${(bytes / 1e9).toFixed(1)} GB` : null)
 
 function ModelPicker({ status, value, onChange }: { status: CoachStatus | null; value: string; onChange: (v: string) => void }) {
-  if (!status) return <span className="text-2xs text-faint">Checking Ollama…</span>
+  if (!status) return <p className="m-0 py-3 text-sm text-muted">Checking Ollama…</p>
   if (!status.running)
     return (
-      <span className="text-2xs text-muted">
+      <p className="m-0 py-3 text-sm text-muted">
         Ollama isn’t running. Open the Ollama app, or run <code className="font-mono">ollama serve</code>, then reopen Settings.
         {value && ` The coach is set to ${value}.`}
-      </span>
+      </p>
     )
   const names = status.models.map((m) => m.name)
   const options = [{ name: '', size: null, params: null, quant: null }, ...status.models]
   return (
-    <div className="grid gap-1.5">
-      <div role="radiogroup" aria-label="Coach model" className="grid overflow-hidden rounded-lg border hairline">
+    <div className="grid">
+      <div role="radiogroup" aria-label="Coach model" className="grid divide-y divide-[var(--line)]">
         {options.map((m) => {
           const on = value === m.name
           return (
@@ -243,18 +236,23 @@ function ModelPicker({ status, value, onChange }: { status: CoachStatus | null; 
               aria-checked={on}
               key={m.name || 'off'}
               onClick={() => onChange(m.name)}
-              className={`flex items-baseline justify-between gap-4 border-b hairline px-3 py-2 text-left last:border-b-0 ${on ? 'bg-surface-2 text-text' : 'text-muted hover:text-text'}`}
+              className="flex h-9 items-center justify-between gap-4 text-left"
             >
               <span className="flex items-center gap-2.5">
-                <span className={`size-1.5 rounded-full ${on ? 'bg-[var(--text)]' : 'bg-transparent'}`} aria-hidden />
-                <span className={m.name ? 'font-mono text-xs' : 'text-xs'}>{m.name || 'No coach'}</span>
+                <span
+                  className={`grid size-4 place-items-center rounded-full ${on ? 'bg-accent' : 'bg-[var(--control)] shadow-[var(--control-edge)]'}`}
+                  aria-hidden
+                >
+                  {on && <span className="size-1.5 rounded-full bg-white" />}
+                </span>
+                <span className={m.name ? 'font-mono text-sm' : 'text-sm'}>{m.name || 'No coach'}</span>
               </span>
               <span className="tabular text-2xs text-faint">{[m.params, m.quant, gb(m.size)].filter(Boolean).join(' · ')}</span>
             </button>
           )
         })}
       </div>
-      <span className="text-2xs text-faint">
+      <span className="border-t hairline py-2 text-2xs text-muted">
         {status.models.length === 0
           ? 'Ollama has no models yet. Download one with ollama pull <name>, then reopen Settings.'
           : value && !names.includes(value)
@@ -267,20 +265,22 @@ function ModelPicker({ status, value, onChange }: { status: CoachStatus | null; 
 
 function SecretRow({ label, hint, saved, value, onChange, onRemove }: { label: string; hint: string; saved: boolean; value: string; onChange: (v: string) => void; onRemove: () => void }) {
   return (
-    <div className="grid gap-1.5">
-      <div className="flex items-baseline justify-between">
-        <span className="text-xs text-muted">{label}</span>
-        {saved && (
-          <span className="flex items-center gap-3 text-2xs">
-            <span className="text-good">Saved in Keychain</span>
-            <button type="button" className="text-faint hover:text-text" onClick={onRemove}>
-              Remove
-            </button>
-          </span>
-        )}
+    <div className="grid gap-1.5 py-2.5">
+      <div className="flex items-center justify-between gap-6">
+        <span className="text-sm">{label}</span>
+        <span className="flex items-center gap-2">
+          {saved && (
+            <>
+              <span className="text-2xs text-good">In Keychain</span>
+              <button type="button" className="btn h-6 px-2.5 text-2xs" onClick={onRemove}>
+                Remove
+              </button>
+            </>
+          )}
+          <input type="password" className="field w-[240px]" value={value} onChange={(e) => onChange(e.target.value)} placeholder={saved ? 'Paste to replace' : 'Paste it here'} autoComplete="off" aria-label={label} />
+        </span>
       </div>
-      <input type="password" className="field" value={value} onChange={(e) => onChange(e.target.value)} placeholder={saved ? 'Paste a new one to replace it' : 'Paste it here'} autoComplete="off" />
-      <span className="text-2xs text-faint">{hint}</span>
+      <span className="text-2xs text-muted">{hint}</span>
     </div>
   )
 }

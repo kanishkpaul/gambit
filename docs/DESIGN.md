@@ -4,37 +4,46 @@ gambit should feel like a premium instrument: quiet, precise and expensive. You'
 
 ## North star
 
+- **A real Mac app.** gambit looks and behaves like Apple's own apps (changed 2026-11-09 from an editorial look): system type, system colours, your accent colour, native-feeling controls. Nothing should look like a website.
 - **Calm focus.** One thing on screen at a time. The board is the hero, and everything else gets out of its way.
-- **Craft you can feel.** Exact alignment, deliberate type, motion that has weight. No default component-library look.
-- **Dark first, warm light.** A midnight theme by default; the light theme is warm ivory, not clinical white.
+- **Craft you can feel.** Exact alignment, the macOS type scale, motion that has weight. No component-library look.
+- **Light and dark** follow the system appearance; both are first-class.
 
-## Palette (tokens)
+## Colour (tokens in `app/src/index.css`)
 
-| Token | Dark | Light | Use |
+macOS system colours, light / dark:
+
+| Token | Light | Dark | Use |
 |---|---|---|---|
-| `--bg` | `#0B0B0E` | `#F7F3EA` | App background |
-| `--surface` | `#141319` | `#FFFDF8` | Panels, cards |
-| `--surface-2` | `#1C1A22` | `#F0EADD` | Raised / hover |
-| `--line` | `#2A2731` | `#E2D9C6` | Hairlines, dividers |
-| `--text` | `#ECE8DF` | `#1A1814` | Primary text |
-| `--muted` | `#A7A196` | `#6E675B` | Secondary text |
-| `--gold` | `#C9A86A` | `#9C7A3C` | Accent: one per view, sparingly |
-| `--good` | `#7FB89A` | `#3F7D5E` | Correct, best move |
-| `--bad` | `#D9826F` | `#B0503B` | Blunder, error |
+| `--bg` | `#FFFFFF` | `#1E1E1E` | Content pane (text background) |
+| `--window` | `#ECECEC` | `#282828` | Sheets; sidebar fallback outside the app |
+| `--surface` | `#F5F5F7` | `#262628` | Inset group boxes, inspector panels |
+| `--line` | black 10% | white 10% | Separators |
+| `--text` / `--muted` / `--faint` | label / secondary / tertiary label | | Text |
+| `--accent` | the user's accent (`-apple-system-control-accent`), blue fallback | | Default button, selection, sidebar icons, focus ring |
+| `--good` / `--bad` | system green / red, darkened for text contrast | | Correct / blunder |
 
-Gold is a signature, not a fill colour. If two gold elements compete in one view, remove one.
+The accent marks the one default action per view (the filled button). Sidebar icons and selections use it too, as macOS does. `--gold` remains as an alias of `--accent` in code.
 
 ## Typography
 
-- **Display and headings:** New York (Apple's system serif), with Playfair Display as fallback. Light weights, generous tracking on small caps.
-- **UI text:** SF Pro Text / Display. Sizes 13 / 15 / 17 / 22 / 28 / 40.
-- **Notation and numbers:** SF Mono with tabular figures, so moves and evaluations align in columns.
+- **SF Pro only** (system font). The macOS scale: 11 / 12 / 13 (body) / 15 / 17 / 22 / 26 (large title, bold).
+- Headings are SF Pro bold or semibold; no serif display face.
+- **Notation and numbers:** SF Mono and tabular figures, so moves and evaluations align in columns.
+
+## Chrome and controls
+
+- **Window:** translucent sidebar (vibrancy) with traffic lights; a unified toolbar strip along the top of the content with the search field (⌘K).
+- **Sidebar:** section headers ("Train", "Review"), 16 px line icons in the accent colour, 28 px rows, gray selection.
+- **Controls:** AppKit-sized push buttons (28 px), the accent default button, segmented controls with a raised selected segment, switches with an accent track, text fields with the accent focus ring.
+- **Settings:** a sheet laid out like System Settings: grouped inset boxes, label left and control right, footnotes under the group.
+- **Command palette:** Spotlight-like: large search field, accent-filled selection.
 
 ## The board
 
 - A custom board theme: muted walnut on dark slate, low contrast, no gradients on the squares.
 - An elegant piece set, either a refined Staunton or a crisp modern set; never the default.
-- Last-move and check highlights as soft inner glows, not flat fills. Arrows are thin, rounded, partly transparent, and gold for your own ideas.
+- Last-move and check highlights as soft inner glows, not flat fills. Arrows are thin, rounded and partly transparent.
 - The evaluation bar is hidden by default and appears only after you commit (solve first, reveal later).
 
 ## Motion
@@ -51,7 +60,7 @@ Optional, off by default. Wooden move and capture sounds, quiet, and never used 
 ## Interaction
 
 - **Keyboard-first.** A ⌘K command palette, arrow keys through moves, and typed SAN moves on every training board.
-- Native macOS feel: translucent sidebar, traffic lights, ⌘, for settings, full-screen focus mode.
+- Native macOS feel throughout: translucent sidebar, traffic lights, ⌘, for settings, full-screen focus mode.
 - **No gamification.** No streaks, confetti, quotas or shaming red badges. Progress shows up as honest charts.
 
 ## Data visualisation
@@ -61,8 +70,8 @@ Optional, off by default. Wooden move and capture sounds, quiet, and never used 
 
 ## Quality bar (every screen)
 
-- [ ] Works in dark and light and looks intentional in both
-- [ ] One clear primary action; gold used at most once
+- [ ] Works in dark and light and looks like a Mac app in both
+- [ ] One clear default action (accent-filled button)
 - [ ] Alignment checked on a 4 px grid; no orphaned elements
 - [ ] Every interaction reachable by keyboard
 - [ ] Empty, loading and error states designed, not left as defaults

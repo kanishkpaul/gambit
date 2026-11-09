@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 /** The standard view column. */
 export function View({ children }: { children: ReactNode }) {
-  return <div className="mx-auto w-full max-w-[1040px] px-12 pt-14 pb-20">{children}</div>
+  return <div className="mx-auto w-full max-w-[1000px] px-10 pt-[60px] pb-16">{children}</div>
 }
 
 /** View transitions: an 8 px slide plus fade, cross-fade only under Reduce Motion. */
@@ -25,11 +25,11 @@ export function Transition({ id, children, fill = false }: { id: string; childre
 
 export function Header({ eyebrow, title, sub, aside }: { eyebrow: string; title: ReactNode; sub?: ReactNode; aside?: ReactNode }) {
   return (
-    <header className="mb-10 flex items-end justify-between gap-8">
+    <header className="mb-8 flex items-end justify-between gap-8">
       <div className="min-w-0">
-        <div className="eyebrow mb-3">{eyebrow}</div>
+        <div className="mb-1 text-sm font-medium text-muted">{eyebrow}</div>
         <h1 className="display m-0 text-2xl">{title}</h1>
-        {sub && <p className="mt-3 mb-0 max-w-[60ch] text-sm text-muted">{sub}</p>}
+        {sub && <p className="mt-2 mb-0 max-w-[64ch] text-sm leading-relaxed text-muted">{sub}</p>}
       </div>
       {aside && <div className="shrink-0">{aside}</div>}
     </header>
@@ -38,9 +38,9 @@ export function Header({ eyebrow, title, sub, aside }: { eyebrow: string; title:
 
 export function Section({ title, note, children, className = '' }: { title: string; note?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={`mt-12 ${className}`}>
-      <div className="mb-4 flex items-baseline justify-between gap-6 border-b hairline pb-2">
-        <h2 className="m-0 text-xs font-medium text-text">{title}</h2>
+    <section className={`mt-10 ${className}`}>
+      <div className="mb-3 flex items-baseline justify-between gap-6 border-b hairline pb-2">
+        <h2 className="m-0 text-md font-semibold text-text">{title}</h2>
         {note && <div className="text-2xs text-muted">{note}</div>}
       </div>
       {children}
@@ -53,7 +53,7 @@ export function Figure({ label, value, note }: { label: string; value: ReactNode
   return (
     <div className="min-w-0">
       <div className="text-2xs text-muted">{label}</div>
-      <div className="tabular mt-1 font-serif text-xl font-light leading-tight">{value}</div>
+      <div className="tabular mt-1 text-xl font-semibold leading-tight tracking-[-0.01em]">{value}</div>
       {note && <div className="mt-1 text-2xs text-faint">{note}</div>}
     </div>
   )
@@ -71,15 +71,15 @@ export function Segmented<T extends string>({
   label: string
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="inline-flex rounded-[9px] border hairline bg-surface p-[3px]">
+    <div role="radiogroup" aria-label={label} className="inline-flex rounded-[8px] bg-[var(--active)] p-[2px]">
       {options.map((o) => (
         <button
           key={o.value}
           role="radio"
           aria-checked={o.value === value}
           onClick={() => onChange(o.value)}
-          className={`h-7 rounded-md px-3 text-xs transition-colors duration-150 ${
-            o.value === value ? 'bg-surface-2 text-text shadow-[0_1px_0_rgb(255_255_255/0.04)_inset]' : 'text-muted hover:text-text'
+          className={`h-6 rounded-[6px] px-3 text-sm transition-colors duration-150 ${
+            o.value === value ? 'bg-[var(--control)] text-text shadow-[var(--control-edge)] dark:bg-[rgb(255_255_255/0.2)]' : 'text-muted hover:text-text'
           }`}
         >
           {o.label}
@@ -92,10 +92,10 @@ export function Segmented<T extends string>({
 /** A thin determinate progress line. */
 export function Progress({ value, tone = 'text' }: { value: number; tone?: 'text' | 'gold' }) {
   return (
-    <div className="h-[3px] w-full overflow-hidden rounded-full bg-[var(--grid)]" role="progressbar" aria-valuenow={Math.round(value * 100)} aria-valuemin={0} aria-valuemax={100}>
+    <div className="h-[4px] w-full overflow-hidden rounded-full bg-[var(--active)]" role="progressbar" aria-valuenow={Math.round(value * 100)} aria-valuemin={0} aria-valuemax={100}>
       <div
         className="h-full rounded-full transition-[width] duration-700 ease-out"
-        style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%`, background: tone === 'gold' ? 'var(--gold)' : 'var(--muted)' }}
+        style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%`, background: tone === 'gold' ? 'var(--accent)' : 'var(--muted)' }}
       />
     </div>
   )

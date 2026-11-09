@@ -60,8 +60,8 @@ export function Audit() {
         <ol className="m-0 grid list-none gap-6 p-0">
           {data.lessons!.map((l, i) => (
             <li key={i} className="grid grid-cols-[32px_1fr] items-baseline">
-              <span className="tabular font-serif text-lg text-faint">{i + 1}</span>
-              <span className="font-serif text-lg leading-snug font-light">{l}</span>
+              <span className="tabular text-lg text-faint">{i + 1}</span>
+              <span className="text-lg leading-snug">{l}</span>
             </li>
           ))}
         </ol>
@@ -83,7 +83,7 @@ export function Audit() {
         aside={
           state === 'open' && (
             <div className="text-right" aria-live="polite">
-              <div className={`tabular font-serif text-xl font-light ${warn ? 'text-bad' : ''}`}>{left} min</div>
+              <div className={`tabular text-xl font-semibold ${warn ? 'text-bad' : ''}`}>{left} min</div>
               <div className="text-2xs text-muted">left of {data.timebox_min}</div>
             </div>
           )
@@ -205,7 +205,7 @@ function Lessons({ max, onFile, err }: { max: number; onFile: (l: string[]) => v
       >
         {lessons.map((l, i) => (
           <label key={i} className="grid grid-cols-[32px_1fr] items-start">
-            <span className="tabular pt-2 font-serif text-md text-faint">{i + 1}</span>
+            <span className="tabular pt-2 text-md text-faint">{i + 1}</span>
             <textarea
               className="field"
               rows={2}

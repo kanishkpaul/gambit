@@ -78,7 +78,7 @@ export function Coach({ settings, onSettings }: { settings: Settings | null; onS
             <ul className="m-0 grid list-none gap-4 p-0">
               {latest.observations.map((o, i) => (
                 <li key={i} className="grid gap-1">
-                  <span className="font-serif text-md leading-snug font-light">{o.text}</span>
+                  <span className="text-md leading-snug">{o.text}</span>
                   <span className="text-2xs text-faint">from {o.evidence.map((e) => e.replaceAll('_', ' ')).join(', ')}</span>
                 </li>
               ))}

@@ -13,7 +13,7 @@ export function LevelLabel({ h, subject = 'Plays', size = 'lg', showScale = true
   const where = p ? `${PLATFORM[p.platform]} ${p.time_class}` : h.scale
   return (
     <div className="grid gap-1">
-      <div className={size === 'lg' ? 'font-serif text-lg font-light leading-snug' : 'text-sm'}>
+      <div className={size === 'lg' ? 'text-lg font-semibold leading-snug' : 'text-sm'}>
         {subject} like a {where} <span className="tabular">~{num(value)}</span>
         {h.edge === 'high' ? ' or stronger' : h.edge === 'low' ? ' or weaker' : ''} player
       </div>

@@ -35,7 +35,7 @@ export function Today({ onGo }: { onGo: (v: ViewId) => void }) {
         <ol className="m-0 grid list-none gap-0 border-t hairline p-0">
           {p.blocks.map((b, i) => (
             <li key={b.activity} className="grid grid-cols-[28px_1fr_160px_auto] items-center gap-6 border-b hairline py-5">
-              <span className="tabular font-serif text-lg font-light text-faint">{i + 1}</span>
+              <span className="tabular text-lg text-faint">{i + 1}</span>
               <div className="min-w-0">
                 <div className="text-md">{b.label}</div>
                 <div className="mt-0.5 text-xs text-muted">{b.why}</div>

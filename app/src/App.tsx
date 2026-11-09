@@ -1,3 +1,4 @@
+import { Search } from 'lucide-react'
 import { AnimatePresence } from 'motion/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CommandPalette, type PaletteAction } from './components/CommandPalette'
@@ -109,10 +110,23 @@ export default function App() {
   }, [analysis?.state, settings?.fairplay_lock, setView, toggleLock, stopForToday])
 
   return (
-    <div className="grid h-full grid-cols-[224px_1fr]">
+    <div className="grid h-full grid-cols-[216px_1fr]">
       <Sidebar view={view} onView={setView} settings={settings} analysis={analysis} onToggleLock={toggleLock} onSettings={() => setSettingsOpen(true)} />
-      <main className="relative min-h-0 overflow-y-auto bg-bg">
-        <div className="absolute inset-x-0 top-0 h-[38px]" data-tauri-drag-region />
+      <main className="relative min-h-0 overflow-y-auto border-l border-[var(--line)] bg-bg">
+        {/* The unified toolbar: a drag strip level with the traffic lights, and the command search. */}
+        <div className="sticky top-0 z-20 h-0">
+          <div className="absolute inset-x-0 top-0 flex h-[52px] items-center justify-end px-4" data-tauri-drag-region>
+            <button
+              onClick={() => setPaletteOpen(true)}
+              className="flex h-7 w-[200px] items-center gap-1.5 rounded-[8px] bg-[var(--hover)] px-2 text-sm text-faint shadow-[inset_0_0_0_0.5px_var(--line)] backdrop-blur-xl hover:text-muted"
+              title="Search views and commands  ⌘K"
+            >
+              <Search size={14} strokeWidth={2} aria-hidden />
+              <span className="flex-1 text-left">Search</span>
+              <kbd>⌘K</kbd>
+            </button>
+          </div>
+        </div>
         {conn === 'down' && (
           <div className="sticky top-0 z-10 border-b hairline bg-surface px-12 py-2.5 text-xs text-bad">
             The brain isn't responding. gambit keeps retrying; if this stays, quit and reopen the app.

@@ -184,7 +184,7 @@ function Session({ initial, onLeave }: { initial: LabView; onLeave: () => void }
   return (
     <div className="grid h-full min-h-[640px] grid-cols-[1fr_400px]">
       <div className="grid place-items-center px-10 pt-12 pb-8" data-tauri-drag-region>
-        <div className="aspect-square w-[min(calc(100vh-112px),100%)] rounded-[6px] bg-surface p-2.5 shadow-[0_0_0_1px_var(--line),0_30px_80px_-30px_rgb(0_0_0/0.8)]">
+        <div className="aspect-square w-[min(calc(100vh-112px),100%)] rounded-[6px] bg-surface p-2.5 shadow-[0_0_0_0.5px_var(--line),0_12px_32px_-12px_rgb(0_0_0/0.35)]">
           <Board fen={board.fen} orientation={g.my_color} turnColor={board.turn} movable={null} dests={board.dests} lastMove={board.lastMove} check={board.check} shapes={board.shapes} />
         </div>
       </div>
@@ -238,7 +238,7 @@ function Session({ initial, onLeave }: { initial: LabView; onLeave: () => void }
             <h2 className="display m-0 text-lg">Filed and closed.</h2>
             <ol className="m-0 grid list-none gap-3 p-0">
               {v.lessons.map((l, i) => (
-                <li key={i} className="grid grid-cols-[22px_1fr] font-serif text-md leading-snug font-light">
+                <li key={i} className="grid grid-cols-[22px_1fr] text-md leading-snug">
                   <span className="tabular text-faint">{i + 1}</span>
                   {l}
                 </li>

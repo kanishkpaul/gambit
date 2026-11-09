@@ -213,7 +213,7 @@ function Play({ g, onEnd, onGo }: { g: SparringGame; onEnd: () => void; onGo: (v
   return (
     <div className="grid h-full min-h-[640px] grid-cols-[1fr_360px]">
       <div className="grid place-items-center px-10 pt-12 pb-8" data-tauri-drag-region>
-        <div className="aspect-square w-[min(calc(100vh-112px),100%)] rounded-[6px] bg-surface p-2.5 shadow-[0_0_0_1px_var(--line),0_30px_80px_-30px_rgb(0_0_0/0.8)]">
+        <div className="aspect-square w-[min(calc(100vh-112px),100%)] rounded-[6px] bg-surface p-2.5 shadow-[0_0_0_0.5px_var(--line),0_12px_32px_-12px_rgb(0_0_0/0.35)]">
           <Board fen={v.fen} orientation={g.you} turnColor={v.turn} movable={yourTurn ? g.you : null} dests={v.dests} lastMove={v.lastMove} check={v.check} onMove={(o, d) => play(uciFromBoard(line.pos(), o, d))} />
         </div>
       </div>
