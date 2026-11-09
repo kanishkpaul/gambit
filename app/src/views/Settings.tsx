@@ -12,6 +12,9 @@ export function SettingsSheet({ open, onClose, settings, onSaved }: { open: bool
   const [chesscom, setChesscom] = useState('')
   const [lichess, setLichess] = useState('')
   const [start, setStart] = useState('')
+  const [hours, setHours] = useState(20)
+  const [rest, setRest] = useState<number[]>([6])
+  const [stageOverride, setStageOverride] = useState<number | null>(null)
   const [token, setToken] = useState('')
   const [key, setKey] = useState('')
   const [err, setErr] = useState<string | null>(null)
@@ -22,6 +25,9 @@ export function SettingsSheet({ open, onClose, settings, onSaved }: { open: bool
     setChesscom(settings.chesscom_username)
     setLichess(settings.lichess_username)
     setStart(toDateInput(settings.training_start))
+    setHours(settings.weekly_hours ?? 20)
+    setRest(settings.rest_days ?? [6])
+    setStageOverride(settings.stage_override ?? null)
     setToken('')
     setKey('')
     setErr(null)
@@ -45,6 +51,9 @@ export function SettingsSheet({ open, onClose, settings, onSaved }: { open: bool
         chesscom_username: chesscom.trim(),
         lichess_username: lichess.trim(),
         training_start: start ? Math.floor(new Date(`${start}T00:00:00`).getTime() / 1000) : settings?.training_start,
+        weekly_hours: Math.max(1, Math.min(60, hours)),
+        rest_days: rest,
+        stage_override: stageOverride,
       })
       onSaved(s)
       onClose()
@@ -123,6 +132,41 @@ export function SettingsSheet({ open, onClose, settings, onSaved }: { open: bool
               <Row label="Training started" hint="Gate 0 measures your progress from this date.">
                 <input type="date" className="field tabular" value={start} onChange={(e) => setStart(e.target.value)} />
               </Row>
+              <Row label="Hours a week" hint="The plan spreads these over your training days.">
+                <input type="number" min={1} max={60} className="field tabular w-28" value={hours} onChange={(e) => setHours(Number(e.target.value))} />
+              </Row>
+              <div className="grid gap-1.5">
+                <span className="text-xs text-muted">Rest days</span>
+                <div className="flex gap-1.5">
+                  {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+                    <button
+                      type="button"
+                      key={i}
+                      aria-pressed={rest.includes(i)}
+                      onClick={() => setRest((r) => (r.includes(i) ? r.filter((x) => x !== i) : [...r, i].sort()))}
+                      className={`size-8 rounded-md border text-xs ${rest.includes(i) ? 'border-[var(--text)] bg-surface-2 text-text' : 'hairline text-muted'}`}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid gap-1.5">
+                <span className="text-xs text-muted">Stage</span>
+                <div className="flex gap-1.5">
+                  {[null, 1, 2, 3, 4].map((st) => (
+                    <button
+                      type="button"
+                      key={String(st)}
+                      aria-pressed={stageOverride === st}
+                      onClick={() => setStageOverride(st)}
+                      className={`h-8 rounded-md border px-3 text-xs ${stageOverride === st ? 'border-[var(--text)] bg-surface-2 text-text' : 'hairline text-muted'}`}
+                    >
+                      {st ?? 'From my rating'}
+                    </button>
+                  ))}
+                </div>
+              </div>
               {settings && (
                 <p className="m-0 text-2xs text-faint">
                   Analysis runs {settings.engine.workers} Stockfish workers at {num(settings.engine.nodes)} nodes a position, and re-checks your blunders at{' '}

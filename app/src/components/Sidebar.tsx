@@ -2,21 +2,21 @@ import type { AnalysisStatus, Settings } from '../lib/types'
 import { num } from '../lib/format'
 import { Progress } from './ui'
 
-export type ViewId = 'mirror' | 'solve' | 'lab' | 'slope' | 'audit'
+export type ViewId = 'today' | 'solve' | 'lab' | 'endgames' | 'sparring' | 'mirror' | 'slope' | 'audit'
 
-export const VIEWS: { id: ViewId; label: string; hint: string }[] = [
-  { id: 'mirror', label: 'Mirror', hint: '⌘1' },
-  { id: 'solve', label: 'Solve', hint: '⌘2' },
-  { id: 'lab', label: 'Game Lab', hint: '⌘3' },
-  { id: 'slope', label: 'Slope', hint: '⌘4' },
-  { id: 'audit', label: 'Audit', hint: '⌘5' },
+export const VIEWS: { id: ViewId; label: string; hint: string; group: 'train' | 'review' }[] = [
+  { id: 'today', label: 'Today', hint: '⌘1', group: 'train' },
+  { id: 'solve', label: 'Solve', hint: '⌘2', group: 'train' },
+  { id: 'lab', label: 'Game Lab', hint: '⌘3', group: 'train' },
+  { id: 'endgames', label: 'Endgames', hint: '⌘4', group: 'train' },
+  { id: 'sparring', label: 'Sparring', hint: '⌘5', group: 'train' },
+  { id: 'mirror', label: 'Mirror', hint: '⌘6', group: 'review' },
+  { id: 'slope', label: 'Slope', hint: '⌘7', group: 'review' },
+  { id: 'audit', label: 'Audit', hint: '⌘8', group: 'review' },
 ]
 
 // The rest of the plan, shown honestly as what's next rather than as dead buttons.
 const LATER: [string, string][] = [
-  ['Endgames', '0.4'],
-  ['Sparring', '0.4'],
-  ['Planner', '0.4'],
   ['Calculation', '0.5'],
   ['Openings', '0.5'],
   ['Coach', '0.5'],
@@ -46,8 +46,9 @@ export function Sidebar({
       </div>
 
       <nav aria-label="Views" className="flex flex-col gap-px">
-        {VIEWS.map((v) => (
+        {VIEWS.map((v, i) => (
           <button
+            style={i > 0 && VIEWS[i - 1].group !== v.group ? { marginTop: 14 } : undefined}
             key={v.id}
             onClick={() => onView(v.id)}
             aria-current={view === v.id ? 'page' : undefined}

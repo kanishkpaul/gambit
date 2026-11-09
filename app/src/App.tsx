@@ -13,13 +13,16 @@ import { SettingsSheet } from './views/Settings'
 import { Slope } from './views/Slope'
 import { Solve } from './views/Solve'
 import { GameLab } from './views/GameLab'
+import { Today } from './views/Today'
+import { Endgames } from './views/Endgames'
+import { Sparring } from './views/Sparring'
 
 const loadView = (): ViewId => {
   try {
     const v = localStorage.getItem('gambit.view') as ViewId | null
-    return v && VIEWS.some((x) => x.id === v) ? v : 'mirror'
+    return v && VIEWS.some((x) => x.id === v) ? v : 'today'
   } catch {
-    return 'mirror'
+    return 'today'
   }
 }
 
@@ -62,7 +65,7 @@ export default function App() {
     brain.call<Settings>('fairplay.set', { locked: !settings?.fairplay_lock }).then(setSettings)
   }, [settings, setSettings])
 
-  // Keyboard: ⌘K palette, ⌘, settings, ⌘1–5 views.
+  // Keyboard: ⌘K palette, ⌘, settings, ⌘1–8 views.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!e.metaKey) return
@@ -72,7 +75,7 @@ export default function App() {
       } else if (e.key === ',') {
         e.preventDefault()
         setSettingsOpen(true)
-      } else if (/^[1-5]$/.test(e.key)) {
+      } else if (/^[1-8]$/.test(e.key)) {
         e.preventDefault()
         setView(VIEWS[Number(e.key) - 1].id)
       }
@@ -111,12 +114,15 @@ export default function App() {
             The brain isn't responding. gambit keeps retrying; if this stays, quit and reopen the app.
           </div>
         )}
-        {guard && guard.stop_loss.level !== 'clear' && view !== 'solve' && view !== 'lab' && <StopLoss g={guard} />}
+        {guard && guard.stop_loss.level !== 'clear' && ['today', 'mirror', 'slope'].includes(view) && <StopLoss g={guard} />}
         <AnimatePresence mode="wait">
-          <Transition key={view} id={view} fill={view === 'solve' || view === 'lab'}>
+          <Transition key={view} id={view} fill={['solve', 'lab', 'endgames', 'sparring'].includes(view)}>
             {view === 'mirror' && <Mirror settings={settings} analysis={analysis} imp={imp} onSettingsChange={setSettings} />}
             {view === 'solve' && <Solve />}
             {view === 'lab' && <GameLab />}
+            {view === 'today' && <Today onGo={setView} />}
+            {view === 'endgames' && <Endgames />}
+            {view === 'sparring' && <Sparring onGo={setView} />}
             {view === 'slope' && <Slope />}
             {view === 'audit' && <Audit />}
           </Transition>

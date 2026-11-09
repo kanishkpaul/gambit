@@ -16,7 +16,7 @@ from typing import Any
 
 import chess
 
-from . import config, solve
+from . import config, humanlevel, solve
 from .analysis import classify
 from .chesslib import Eval, epd
 from .db import tx
@@ -275,9 +275,16 @@ class Lab:
         evals_series = [ev(m["epd_before"]).clamped() for m in moves] + [ev(epd(final)).clamped()]
 
         maia_part = None
+        human = None
         if not self.locked():
             await self.emit({"stage": "maia", "done": 0, "total": len(mine)})
             maia_part = await asyncio.to_thread(self._maia, g, moves)
+            try:
+                await humanlevel.ensure_game(self.conn, self.maia, g["id"])
+                human = {"sides": humanlevel.game_sides(self.conn, g["id"]),
+                         "opponent": humanlevel.opponent(self.conn, g["opp_name"]) if g["opp_name"] else None}
+            except Exception:  # a bonus, like Maia itself
+                human = None
 
         # Time against what was at stake: your error size or the opponent's error you could punish.
         time_rows = []
@@ -298,6 +305,7 @@ class Lab:
             "your_moments": sorted(your),
             "found": sorted(set(engine_plies) & set(your)),
             "maia": maia_part,
+            "human": human,
             "time": {"moves": time_rows,
                      "critical_share_of_moves": round(len(crit) / len(spent), 3) if spent else None,
                      "critical_share_of_time": round(sum(t["spent_s"] for t in crit) / total, 3) if total else None},

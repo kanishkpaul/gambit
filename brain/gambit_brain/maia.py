@@ -106,18 +106,64 @@ class Maia:
         return out
 
 
+def sample_move(maia: Maia, start_fen: str, ucis: list[str], self_elo: int, opp_elo: int,
+                temperature: float = 1.0, rng: Any = None) -> str:
+    """A human-like move, sampled from Maia's policy at `self_elo`. Always playing the single most
+    likely move makes a bot stronger than its label (report 07); sampling keeps the human mistakes."""
+    import random as _random
+
+    import torch
+    from maia3.dataset import get_historical_tokens, get_legal_moves_mask, tokenize_board
+    from maia3.utils import mirror_move
+
+    maia.load()
+    cfg, model = maia._cfg, maia._model
+    board = chess.Board(start_fen)
+    history: deque = deque(maxlen=cfg.history)
+    for uci in ucis:
+        history.append(tokenize_board(board))
+        board.push_uci(uci)
+    history.append(tokenize_board(board))
+    x = get_historical_tokens(history, cfg, base=0.0, inc=0.0, clk_left_before=0.0, clk_ponder=0.0)
+    with torch.no_grad():
+        logits = model(x.unsqueeze(0).to(maia.device), torch.tensor([self_elo], device=maia.device),
+                       torch.tensor([opp_elo], device=maia.device))[0][0].float().cpu()
+    logits = logits.masked_fill(~get_legal_moves_mask(board, maia._index), float("-inf"))
+    probs = torch.softmax(logits / max(temperature, 1e-3), dim=-1).tolist()
+    r = (rng or _random).random()
+    acc = 0.0
+    pick = max(range(len(probs)), key=lambda i: probs[i])
+    for i, p in enumerate(probs):
+        acc += p
+        if p > 0 and acc >= r:
+            pick = i
+            break
+    uci = maia._moves[pick]
+    return mirror_move(uci) if board.turn == chess.BLACK else uci
+
+
 def band_fit(profiles: list[MoveProfile], levels: list[int] | None = None) -> dict[str, Any] | None:
-    """The rating level whose Maia best explains your moves (highest mean log-probability).
+    """The rating level whose Maia best explains a player's moves (highest log-likelihood).
 
     Report 02's inference, not a validated diagnostic: show it as a resemblance, never as a rating.
     """
     levels = levels or list(config.MAIA_LEVELS)
-    if len(profiles) < config.MAIA_MIN_MOVES:
+    totals = [sum(math.log(max(p.probs[k], 1e-6)) for p in profiles) for k in range(len(levels))]
+    return fit_from_totals(totals, len(profiles), levels)
+
+
+def fit_from_totals(totals: list[float], moves: int, levels: list[int] | None = None) -> dict[str, Any] | None:
+    """Best level plus a likelihood interval: every level whose total log-likelihood is within
+    config.MAIA_LL_INTERVAL of the best (2.0 ≈ a 95% interval for one parameter). Totals add across
+    games, so pooling many games narrows the range honestly."""
+    levels = levels or list(config.MAIA_LEVELS)
+    if moves < config.MAIA_MIN_MOVES:
         return None
-    scores = [sum(math.log(max(p.probs[k], 1e-6)) for p in profiles) / len(profiles) for k in range(len(levels))]
-    best = max(range(len(levels)), key=lambda k: scores[k])
-    return {"level": levels[best], "levels": levels, "mean_logp": [round(s, 4) for s in scores],
-            "moves": len(profiles)}
+    best = max(range(len(levels)), key=lambda k: totals[k])
+    inside = [k for k in range(len(levels)) if totals[k] >= totals[best] - config.MAIA_LL_INTERVAL]
+    edge = "low" if best == 0 else "high" if best == len(levels) - 1 else None
+    return {"level": levels[best], "lo": levels[min(inside)], "hi": levels[max(inside)], "levels": levels,
+            "mean_logp": [round(t / moves, 4) for t in totals], "moves": moves, "edge": edge}
 
 
 def nearest_level(elo: int, levels: list[int] | None = None) -> int:

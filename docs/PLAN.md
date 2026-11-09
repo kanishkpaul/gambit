@@ -131,10 +131,18 @@ Switch the UI layer to native SwiftUI (keeping the brain and protocol unchanged)
 - **Fair-play lock.** Lichess's public status endpoint is polled every 30 s: the lock turns on during a Lichess game and off after it; a manual lock is never lifted automatically.
 - **Stop-loss.** A banner after 2 straight losses today and a stop after 3, or for the rest of the day after "that loss made me angry" (command palette).
 
+### v0.4 · Train (built 2026-11-09)
+
+- **Today.** The day's minutes (weekly hours ÷ training days; default 20 h, Sunday off) split by the stage allocation. Unbuilt modules fold into Solve (master games) and Game Lab (openings). Study blocks rotate daily for variety; play always comes last. Time done is measured from Solve sets, post-mortems, endgame attempts and games, never typed in; the week shows plan against actual, with no streaks. The stage follows the rolling rating of your headline pool (Chess.com rapid 1600 / 2000 / 2200; Lichess +200, approximate), or a manual override.
+- **Endgames.** 11 positions in three stages (basic mates, king and pawn, rook pawn, Lucena, Philidor, rook against pawn, two bishops, bishop and knight), each verified against the Lichess tablebase. Played against perfect tablebase defence, randomly mirrored left–right and colour-flipped. A move that throws the result away ends the attempt and shows the moves that kept it; the idea is shown only afterwards. FSRS schedules each position (Easy when done within 2 moves of optimal).
+- **Sparring.** Maia-3 79M, its policy sampled at the chosen level (not its top move, which plays above its label), with human-paced thinking time charged to its clock. Long time controls only (15+10 to 60+30), no engine during the game. Games are saved (platform `sparring`, never counted for the stop-loss) and open straight into Game Lab. Results are tracked per level.
+- **Human-level labels.** Maia-3 learned only from Lichess blitz, so its levels are on that scale, and the research found no trustworthy published conversion at beginner-to-club level. So gambit measures one: every game gets a Maia fit for both sides (log-likelihood totals at 21 levels, 600–2600, with a likelihood interval), and your rating against the level your own moves resemble, pooled over 15–40 recent rated games, gives a personal offset. Any level (a sparring bot, or any opponent, including other sites' bots via a pasted PGN) is then shown as "plays like a Chess.com rapid ~X player", with a likely range, relative to your own moves, and a pooled profile across repeat games. A fit at either end of Maia's range is shown as "or stronger"/"or weaker", never as a number. Your results against each level check the label.
+- **Background.** New games are fetched every 30 minutes and as soon as a Lichess game ends; the Maia fits run after analysis.
+
 ## Build order
 
 1. **v0.1 · Mirror:** import, batch analysis, Slope dashboard, one-time audit. *(built; see Build notes)*
 2. **v0.2 · Solve:** positions from your own blunders + Lichess puzzle library, solve-first, FSRS. *(built; see Build notes)*
 3. **v0.3 · Game Lab:** engine-locked post-mortems, Maia comparison, fair-play lock, guardrails. *(built; see Build notes)*
-4. **v0.4 · Train:** planner, endgames, Maia sparring.
+4. **v0.4 · Train:** planner, endgames, Maia sparring, human-level labels for any opponent. *(built; see Build notes)*
 5. **v0.5 · Deepen:** calculation, openings, master games, Claude coach, calibration.

@@ -26,14 +26,30 @@ import chess
 import websockets
 from websockets.asyncio.server import ServerConnection
 
-from . import analysis, audit, config, db, games, guardrails, importers, lab, metrics, puzzles, solve
+from . import (
+    analysis,
+    audit,
+    config,
+    db,
+    endgames,
+    games,
+    guardrails,
+    humanlevel,
+    importers,
+    lab,
+    metrics,
+    planner,
+    puzzles,
+    solve,
+    sparring,
+)
 from .maia import Maia
 
 log = logging.getLogger("gambit.brain")
 
 Handler = Callable[[dict[str, Any]], Awaitable[Any] | Any]
 
-USER_SETTINGS = {"chesscom_username", "lichess_username", "training_start"}
+USER_SETTINGS = {"chesscom_username", "lichess_username", "training_start", "weekly_hours", "rest_days", "stage_override"}
 
 
 class RpcError(Exception):
@@ -48,13 +64,18 @@ class Brain:
         self.secrets: dict[str, str] = dict(secrets or {})
         self.clients: set[ServerConnection] = set()
         self.pool = analysis.EnginePool()
-        self.job = analysis.BatchAnalysis(conn, self.pool, lambda d: self.broadcast("analysis", d))
+        self.job = analysis.BatchAnalysis(conn, self.pool, self._analysis_event)
         self.puzzles = puzzles.PuzzleImport(conn, lambda d: self.broadcast("puzzles", d))
         self.live = analysis.EnginePool(config.LIVE)
         self.solver = solve.Solver(conn, self.live_check)
         self.maia = Maia()
         self.lab = lab.Lab(conn, self.live_analyse, self.maia, self._locked, lambda d: self.broadcast("lab", d))
-        self.watcher = guardrails.LichessWatcher(conn, self.apply_lock)
+        self.watcher = guardrails.LichessWatcher(conn, self.apply_lock, self._game_ended)
+        self.endgames = endgames.Endgames(conn)
+        self.spar_maia = Maia(config.MAIA_SPARRING_MODEL)
+        self.sparring = sparring.Sparring(conn, self.spar_maia, self._locked)
+        self.sweep_task: asyncio.Task | None = None
+        humanlevel.prune_stale(conn)
         self.import_task: asyncio.Task | None = None
         self.import_state: dict[str, Any] = {"state": "idle"}
         if db.get_setting(conn, "training_start") is None:
@@ -94,6 +115,23 @@ class Brain:
             "lab.unlock": lambda p: self._awrap(self.lab.unlock(int(p["session_id"]))),
             "lab.engine": lambda p: self._awrap(self.lab.engine(int(p["session_id"]), str(p["fen"]))),
             "lab.close": lambda p: self._wrap(self.lab.close, int(p["session_id"]), list(p.get("lessons", []))),
+            "endgames.overview": lambda p: self.endgames.overview(),
+            "endgames.start": lambda p: self._awrap(self.endgames.start(p.get("key"), planner.stage(self.conn)["stage"])),
+            "endgames.move": lambda p: self._awrap(self._endgame_move(str(p["uci"]))),
+            "endgames.abandon": lambda p: self.endgames.abandon(),
+            "sparring.overview": lambda p: self.sparring.overview(),
+            "sparring.start": lambda p: self._awrap(self.sparring.start(
+                str(p.get("color", "random")), int(p.get("base_min", 15)), int(p.get("inc_s", 10)), p.get("level"))),
+            "sparring.move": lambda p: self._awrap(self.sparring.move(str(p["uci"]), int(p.get("clock_ms", 0)))),
+            "sparring.resign": lambda p: self._wrap(self.sparring.resign),
+            "sparring.flag": lambda p: self._wrap(self.sparring.flag),
+            "sparring.claim_draw": lambda p: self._wrap(self.sparring.claim_draw),
+            "planner.today": lambda p: planner.today(self.conn),
+            "human.scale": lambda p: humanlevel.personal_scale(self.conn),
+            "human.describe": lambda p: humanlevel.describe(self.conn, int(p["level"])),
+            "human.opponent": lambda p: humanlevel.opponent(self.conn, str(p.get("name", ""))),
+            "human.game": self.human_game,
+            "human.sweep": lambda p: self.start_sweep(),
             "guard.status": self.guard_status,
             "guard.tilt": self.guard_tilt,
         }
@@ -126,6 +164,9 @@ class Brain:
             "chesscom_username": s.get("chesscom_username", ""),
             "lichess_username": s.get("lichess_username", ""),
             "training_start": s.get("training_start"),
+            "weekly_hours": s.get("weekly_hours", config.PLANNER_WEEKLY_HOURS),
+            "rest_days": s.get("rest_days", config.PLANNER_REST_DAYS),
+            "stage_override": s.get("stage_override"),
             "fairplay_lock": bool(s.get("fairplay_lock", False)),
             "fairplay_reason": s.get("fairplay_reason"),
             "has_lichess_token": bool(self.secrets.get("lichess_token")),
@@ -161,6 +202,9 @@ class Brain:
             await self.job.halt()
             await self.live.stop()
             self.maia.unload()
+            self.spar_maia.unload()
+            if self.sweep_task and not self.sweep_task.done():
+                self.sweep_task.cancel()
         await self.broadcast("settings", self.settings_get())
 
     def _locked(self) -> bool:
@@ -214,6 +258,52 @@ class Brain:
     def analysis_pause(self, _p=None) -> dict[str, Any]:
         self.job.pause()
         return self.job.status()
+
+    # Train ----------------------------------------------------------------------------------------
+    async def _endgame_move(self, uci: str) -> dict[str, Any]:
+        if self._locked():
+            raise RpcError("The fair-play lock is on. Finish your live game first.")
+        try:
+            return await self.endgames.move(uci)
+        except RuntimeError as e:  # tablebase unreachable
+            raise RpcError(str(e)) from e
+
+    async def human_game(self, p: dict[str, Any]) -> dict[str, Any]:
+        """Human-level labels for both sides of a game, plus the pooled profile of the opponent."""
+        if self._locked():
+            raise RpcError("The fair-play lock is on. Finish your live game first.")
+        gid = int(p["game_id"])
+        await humanlevel.ensure_game(self.conn, self.maia, gid)
+        g = self.conn.execute("SELECT opp_name FROM games WHERE id = ?", (gid,)).fetchone()
+        return {"sides": humanlevel.game_sides(self.conn, gid),
+                "opponent": humanlevel.opponent(self.conn, g["opp_name"]) if g and g["opp_name"] else None,
+                "scale": humanlevel.personal_scale(self.conn)}
+
+    def start_sweep(self) -> dict[str, Any]:
+        if self._locked():
+            raise RpcError("The fair-play lock is on.")
+        if self.sweep_task is None or self.sweep_task.done():
+            self.sweep_task = asyncio.create_task(
+                humanlevel.sweep(self.conn, self.maia, self._locked, lambda d: self.broadcast("human", d)))
+        return {"running": True}
+
+    async def _analysis_event(self, d: dict[str, Any]) -> None:
+        await self.broadcast("analysis", d)
+        if d.get("state") == "done" and not self._locked():
+            self.start_sweep()  # once games are analysed, fit how human-like each side played
+
+    async def _game_ended(self) -> None:
+        await self.import_start()
+
+    async def auto_import(self) -> None:
+        while True:
+            await asyncio.sleep(config.AUTO_IMPORT_MIN * 60)
+            s = self.settings_get()
+            if s["chesscom_username"] or s["lichess_username"]:
+                try:
+                    await self.import_start()
+                except RpcError:
+                    pass
 
     # Game Lab and guardrails --------------------------------------------------------------------
     async def live_analyse(self, fen: str, nodes: int):
@@ -373,6 +463,7 @@ async def serve(port: int, token: str, secrets: dict[str, str], watch_stdin: boo
     conn = db.connect()
     brain = Brain(conn, secrets)
     brain.watcher.start()
+    brain.auto_task = asyncio.create_task(brain.auto_import())
     _lifelines(brain, asyncio.get_running_loop(), watch_stdin)
     async with websockets.serve(lambda ws: brain.handle(ws, token), "127.0.0.1", port, max_size=2**22):
         print(f"brain: ready on {port}", file=sys.stderr, flush=True)

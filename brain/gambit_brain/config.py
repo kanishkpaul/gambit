@@ -150,9 +150,10 @@ MOTIF_BOOST = 4.0  # added to a theme's weight in proportion to the share of you
 # ── Game Lab and Maia (v0.3) ────────────────────────────────────────────────────────────────────
 MAIA_ANALYSIS_MODEL = "maia3-23m"  # 23M: fast on CPU and validated at 57% move match
 MAIA_SPARRING_MODEL = "maia3-79m"
-MAIA_LEVELS = range(800, 2401, 100)
+MAIA_LEVELS = range(600, 2601, 100)  # a fit on either end means 'beyond the scale', never a number
 MAIA_BATCH = 256
-MAIA_MIN_MOVES = 12  # fewer of your moves than this and the band fit is noise
+MAIA_MIN_MOVES = 12  # fewer moves than this and the band fit is noise
+MAIA_LL_INTERVAL = 2.0  # log-likelihood drop that bounds the "likely range" of a band fit
 MAIA_HIGHER_BY = 400  # "a stronger player": your level plus this
 DEFAULT_PLAYING_ELO = 1000  # until a rated game tells us otherwise (Chess.com rapid 400–1200 start)
 
@@ -168,3 +169,26 @@ ENGINE_CHECK_NUDGE = 3  # repeated engine checks of one position before the reas
 LICHESS_STATUS_POLL_S = 30  # live-game detection for the fair-play lock
 STOP_LOSS_CAUTION = 2  # straight losses today
 STOP_LOSS_STOP = 3
+
+
+# ── Train (v0.4) ────────────────────────────────────────────────────────────────────────────────
+TABLEBASE_URL = "https://tablebase.lichess.org/standard"
+ENDGAME_HOLD_MOVES = 12  # survive this many of your moves with the draw intact
+ENDGAME_DEFAULT_MOVES = 20
+
+# Human-level labels. Maia-3 learned from Lichess blitz, so its levels are on that scale. The
+# research found no trustworthy conversion to Chess.com at beginner-to-club level, so gambit measures
+# your own: your rating against the Maia level your moves resemble, over your recent games.
+MAIA_SCALE = "Lichess blitz"
+PERSONAL_SCALE_GAMES = 40  # recent rated games pooled for your personal conversion
+PERSONAL_SCALE_MIN_GAMES = 15
+SPARRING_OFFSET = 100  # spar slightly above your level
+SPARRING_TEMPERATURE = 1.0  # sample Maia's policy as-is: humans don't always play their top choice
+SPARRING_TIME_CONTROLS = [(15, 10), (30, 0), (45, 15), (60, 30)]  # minutes + seconds; long games only
+AUTO_IMPORT_MIN = 30  # fetch new games in the background this often (and right after a Lichess game ends)
+PLANNER_WEEKLY_HOURS = 20  # 20–40 h/week is the plan; start at the low end
+PLANNER_REST_DAYS = [6]  # Sunday (Monday = 0)
+# Stage boundaries on your headline pool's rolling rating. Chess.com rapid follows report 02's stages
+# (≤1500–1650 → 2000 → 2200); the Lichess column is an approximate +150–250 shift (report 07) and
+# can be overridden in Settings.
+STAGE_THRESHOLDS = {"chesscom": (1600, 2000, 2200), "lichess": (1800, 2150, 2350)}

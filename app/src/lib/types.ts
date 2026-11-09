@@ -11,6 +11,9 @@ export interface Settings {
   has_lichess_token: boolean
   has_anthropic_key: boolean
   engine: { workers: number; nodes: number; deep_nodes: number }
+  weekly_hours?: number
+  rest_days?: number[]
+  stage_override?: number | null
 }
 
 export interface AnalysisStatus {
@@ -291,6 +294,7 @@ export interface LabReveal {
       }
     | { error: string }
     | null
+  human?: { sides: { me?: HumanLevel | null; opp?: HumanLevel | null }; opponent: OpponentProfile | null } | null
   time: {
     moves: { ply: number; spent_s: number | null; stake: number; critical: boolean }[]
     critical_share_of_moves: number | null
@@ -339,4 +343,126 @@ export interface GuardStatus {
   lichess: { checked_at: number | null; playing: boolean | null }
   fairplay_lock: boolean
   fairplay_reason: 'manual' | 'lichess' | null
+}
+
+// ── Train (v0.4) ───────────────────────────────────────────────────────────────────────────────
+
+/** A Maia level in human terms: native Lichess blitz scale, your platform's numbers, relative to you. */
+export interface HumanLevel {
+  maia_level: number
+  lo: number | null
+  hi: number | null
+  scale: string
+  edge?: 'low' | 'high' | null
+  personal?: { platform: Platform; time_class: string; rating: number; lo: number | null; hi: number | null; games: number }
+  vs_you?: number
+  moves?: number
+}
+
+export interface PersonalScale {
+  platform: Platform
+  time_class: string
+  ready: boolean
+  games: number
+  needed?: number
+  beyond?: 'low' | 'high'
+  rating?: number
+  maia_level?: number
+  offset?: number
+}
+
+export interface OpponentProfile {
+  name: string
+  games: number
+  moves: number
+  fit: HumanLevel | null
+  stated_rating: number | null
+  blunders_per_game: number | null
+}
+
+export interface PlanBlock {
+  activity: 'solving' | 'analysis' | 'endgames' | 'play'
+  label: string
+  view: string | null
+  why: string
+  minutes: number
+  done: number
+}
+
+export interface TodayPlan {
+  date: string
+  rest_day: boolean
+  stage: { stage: number; auto: number; override: boolean; basis: { platform: Platform; time_class: string; rating: number; games: number; next_at: number | null } | null }
+  blocks: PlanBlock[]
+  planned: number
+  done: number
+  week: { date: string; weekday: number; planned: number; done: number | null; today: boolean }[]
+  weekly_hours: number
+  rest_days: number[]
+  folded: string[]
+}
+
+export interface EndgameLesson {
+  key: string
+  stage: number
+  title: string
+  goal: 'mate' | 'promote' | 'capture' | 'hold'
+  side: 'white' | 'black'
+  status: 'new' | 'due' | 'learning'
+  due: number | null
+  attempts: number
+  successes: number
+}
+
+export interface EndgameAttempt {
+  key: string
+  title: string
+  goal: EndgameLesson['goal']
+  stage: number
+  side: 'white' | 'black'
+  fen: string
+  moves: string[]
+  user_moves: number
+  move_limit: number
+  lead_uci?: string | null
+}
+
+export type EndgameMoveResult =
+  | { result: 'ok'; done: false; reply_uci: string; user_moves: number; move_limit: number }
+  | {
+      result: 'success' | 'failed'
+      done: true
+      reply_uci: string | null
+      reason: string | null
+      keeping_moves: string[]
+      user_moves: number
+      optimal_moves: number | null
+      idea: string
+      next_review_days: number
+    }
+
+export interface SparringRecord { level: number; n: number; w: number; d: number; l: number; score: number }
+
+export interface SparringGame {
+  you: 'white' | 'black'
+  level: number
+  label: HumanLevel
+  base_s: number
+  inc_s: number
+  moves: string[]
+  clocks: { white: number; black: number }
+  claimable_draw: boolean
+  reply?: SparringReply
+}
+
+export interface SparringReply { uci: string; think_ms: number; clocks: { white: number; black: number }; over?: SparringOver }
+export interface SparringOver { result: 'win' | 'loss' | 'draw'; reason: string; game_id: number | null; level: number; record: SparringRecord | null }
+
+export interface SparringOverview {
+  suggested_level: number
+  your_elo: number
+  label: HumanLevel
+  record: SparringRecord[]
+  game: SparringGame | null
+  time_controls: [number, number][]
 }

@@ -1,6 +1,7 @@
 import * as Plot from '@observablehq/plot'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Board } from '../components/Board'
+import { LevelLabel } from '../components/HumanLevel'
 import { PlotFigure, tok } from '../components/Plot'
 import { Header, Notice, Section, Segmented, View } from '../components/ui'
 import { brain } from '../lib/brain'
@@ -406,10 +407,21 @@ function RevealPanel({ v, r, ply, onPly, onEngine, fen }: { v: LabView; r: LabRe
         {moments.length === 0 && <p className="m-0 text-xs text-muted">No costly errors of yours in this game.</p>}
       </div>
 
-      {maia?.fit && (
-        <div className="text-xs text-muted">
-          Your moves in this game looked most like a <span className="tabular text-text">{num(maia.fit.level)}</span> player’s, by Maia. A resemblance across {maia.fit.moves} moves, not a rating.
+      {r.human?.sides && (r.human.sides.me || r.human.sides.opp) ? (
+        <div className="grid gap-4 border-t hairline pt-5">
+          <div className="text-xs text-muted">How human-like each side played, by Maia: a resemblance, not a rating</div>
+          {r.human.sides.opp && <LevelLabel h={r.human.sides.opp} subject={`${g.opp_name ?? 'Your opponent'} played`} size="sm" />}
+          {r.human.opponent && r.human.opponent.games > 1 && r.human.opponent.fit && (
+            <LevelLabel h={r.human.opponent.fit} subject={`Across ${r.human.opponent.games} games, ${g.opp_name} plays`} size="sm" showScale={false} />
+          )}
+          {r.human.sides.me && <LevelLabel h={r.human.sides.me} subject="You played" size="sm" showScale={false} />}
         </div>
+      ) : (
+        maia?.fit && (
+          <div className="text-xs text-muted">
+            Your moves in this game looked most like a <span className="tabular text-text">{num(maia.fit.level)}</span> player’s, by Maia. A resemblance across {maia.fit.moves} moves, not a rating.
+          </div>
+        )
       )}
       {r.maia && 'error' in r.maia && r.maia.error && <Notice>Maia couldn’t run for this game, so only the engine’s view is shown.</Notice>}
 

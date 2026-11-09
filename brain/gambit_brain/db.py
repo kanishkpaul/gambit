@@ -192,6 +192,19 @@ MIGRATIONS: list[str] = [
       created_at INTEGER NOT NULL
     );
     """,
+    # 4 · Train: human-level fits
+    """
+    -- How human-like each side's moves were, per game: Maia log-likelihood totals at every level.
+    -- Totals add across games, so pooled estimates (you, or a bot you keep playing) narrow honestly.
+    CREATE TABLE maia_fits (
+      game_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+      side    TEXT NOT NULL,          -- 'me' | 'opp'
+      moves   INTEGER NOT NULL,
+      totals  TEXT NOT NULL,          -- JSON list, one per config.MAIA_LEVELS
+      level   INTEGER,
+      PRIMARY KEY (game_id, side)
+    );
+    """,
 ]
 
 

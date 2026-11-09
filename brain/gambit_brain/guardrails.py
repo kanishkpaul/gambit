@@ -33,7 +33,8 @@ def stop_loss(conn: sqlite3.Connection, now: float | None = None) -> dict[str, A
     now = now or time.time()
     start = _day_start(now)
     today = [r["result"] for r in conn.execute(
-        "SELECT result FROM games WHERE played_at >= ? AND platform != 'pgn' ORDER BY played_at DESC", (start,))]
+        "SELECT result FROM games WHERE played_at >= ? AND platform NOT IN ('pgn', 'sparring') ORDER BY played_at DESC",
+        (start,))]
     streak = 0
     for r in today:
         if r != "loss":
@@ -60,8 +61,9 @@ def set_tilt(conn: sqlite3.Connection, on: bool) -> None:
 class LichessWatcher:
     """Polls Lichess and drives the fair-play lock. `apply(locked, reason)` does the locking."""
 
-    def __init__(self, conn: sqlite3.Connection, apply: Callable[[bool, str], Awaitable[None]]):
-        self.conn, self.apply = conn, apply
+    def __init__(self, conn: sqlite3.Connection, apply: Callable[[bool, str], Awaitable[None]],
+                 on_game_end: Callable[[], Awaitable[None]] | None = None):
+        self.conn, self.apply, self.on_game_end = conn, apply, on_game_end
         self.task: asyncio.Task | None = None
         self.last: dict[str, Any] = {"checked_at": None, "playing": None}
 
@@ -77,7 +79,10 @@ class LichessWatcher:
         r.raise_for_status()
         rows = r.json()
         playing = bool(rows and rows[0].get("playing"))
+        was = self.last.get("playing")
         self.last = {"checked_at": int(time.time()), "playing": playing}
+        if was and not playing and self.on_game_end is not None:
+            await self.on_game_end()  # fetch the finished game straight away (stop-loss, post-mortem)
         reason = get_setting(self.conn, "fairplay_reason", None)
         locked = bool(get_setting(self.conn, "fairplay_lock", False))
         if playing and not locked:

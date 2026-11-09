@@ -30,6 +30,8 @@ SCHEDULER = Scheduler(
     relearning_steps=tuple(timedelta(minutes=m) for m in config.FSRS_RELEARNING_STEPS_MIN),
 )
 CONFIDENCE = ("guess", "unsure", "sure")
+# Solve schedules puzzles and your own positions; endgames share the card table but not the sets.
+SOLVABLE = "JOIN items i ON i.id = c.item_id WHERE i.kind IN ('puzzle', 'own')"
 
 # Live check for own positions: (fen, uci) → centipawns lost against the best move, or None if unavailable.
 LiveCheck = Callable[[str, str], Awaitable[int | None]]
@@ -199,7 +201,8 @@ def build_set(conn: sqlite3.Connection, mode: str, rng: random.Random | None = N
     else:
         sync_own_items(conn)
         due = [r[0] for r in conn.execute(
-            "SELECT item_id FROM cards WHERE due <= ? ORDER BY due LIMIT ?", (now, config.SOLVE_MAX_DUE))]
+            "SELECT c.item_id FROM cards c JOIN items i ON i.id = c.item_id "
+            "WHERE c.due <= ? AND i.kind IN ('puzzle', 'own') ORDER BY c.due LIMIT ?", (now, config.SOLVE_MAX_DUE))]
         new_own = [r[0] for r in conn.execute(
             """SELECT i.id FROM items i
                WHERE i.kind = 'own' AND NOT EXISTS (SELECT 1 FROM cards c WHERE c.item_id = i.id)
@@ -312,14 +315,15 @@ class Solver:
         today = now - now % 86_400
         sr = solve_rating(c)
         return {
-            "due": c.execute("SELECT COUNT(*) FROM cards WHERE due <= ?", (now,)).fetchone()[0],
-            "due_later_today": c.execute("SELECT COUNT(*) FROM cards WHERE due > ? AND due < ?",
+            "due": c.execute(f"SELECT COUNT(*) FROM cards c {SOLVABLE} AND c.due <= ?", (now,)).fetchone()[0],
+            "due_later_today": c.execute(f"SELECT COUNT(*) FROM cards c {SOLVABLE} AND c.due > ? AND c.due < ?",
                                          (now, today + 86_400)).fetchone()[0],
             "new_own": c.execute("SELECT COUNT(*) FROM items i WHERE kind = 'own' "
                                  "AND NOT EXISTS (SELECT 1 FROM cards c WHERE c.item_id = i.id)").fetchone()[0],
             "library": c.execute("SELECT COUNT(*) FROM puzzles").fetchone()[0],
-            "learning": c.execute("SELECT COUNT(*) FROM cards").fetchone()[0],
-            "reviews_today": c.execute("SELECT COUNT(*) FROM reviews WHERE at >= ?", (today,)).fetchone()[0],
+            "learning": c.execute(f"SELECT COUNT(*) FROM cards c {SOLVABLE}").fetchone()[0],
+            "reviews_today": c.execute("SELECT COUNT(*) FROM reviews WHERE at >= ? AND mode IN ('standard', 'speed')",
+                                       (today,)).fetchone()[0],
             "solve_rating": round(sr["r"]), "rated_attempts": sr["n"],
             "set_size": config.SOLVE_SET_SIZE, "timebox_min": config.SOLVE_TIMEBOX_MIN,
             "speed_timebox_min": config.SPEED_TIMEBOX_MIN, "session": self._session_info(),
