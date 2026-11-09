@@ -1,0 +1,190 @@
+@import 'tailwindcss';
+
+/* ── Tokens (docs/DESIGN.md) ─────────────────────────────────────────────────────────────────── */
+:root {
+  --bg: #0b0b0e;
+  --surface: #141319;
+  --surface-2: #1c1a22;
+  --line: #2a2731;
+  --text: #ece8df;
+  --muted: #a7a196;
+  --faint: #6f6a62;
+  --gold: #c9a86a;
+  --good: #7fb89a;
+  --bad: #d9826f;
+  /* Chart chrome: recessive by design. */
+  --grid: #1f1d25;
+  --band: rgb(236 232 223 / 0.06);
+  --dot: rgb(167 161 150 / 0.55);
+  --gold-wash: rgb(201 168 106 / 0.12);
+  --hover: rgb(255 255 255 / 0.045);
+  --active: rgb(255 255 255 / 0.075);
+  --shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 24px 60px -32px rgb(0 0 0 / 0.9);
+
+  --serif: 'New York', ui-serif, 'Playfair Display', 'Iowan Old Style', Georgia, serif;
+  --sans: -apple-system, 'SF Pro Text', system-ui, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f7f3ea;
+    --surface: #fffdf8;
+    --surface-2: #f0eadd;
+    --line: #e2d9c6;
+    --text: #1a1814;
+    --muted: #6e675b;
+    --faint: #9a9282;
+    --gold: #9c7a3c;
+    --good: #3f7d5e;
+    --bad: #b0503b;
+    --grid: #ece5d6;
+    --band: rgb(26 24 20 / 0.055);
+    --dot: rgb(110 103 91 / 0.5);
+    --gold-wash: rgb(156 122 60 / 0.12);
+    --hover: rgb(26 24 20 / 0.04);
+    --active: rgb(26 24 20 / 0.07);
+    --shadow: 0 1px 0 rgb(255 255 255 / 0.6) inset, 0 20px 50px -30px rgb(60 40 10 / 0.35);
+    color-scheme: light;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-gold: var(--gold);
+  --color-good: var(--good);
+  --color-bad: var(--bad);
+  --font-serif: var(--serif);
+  --font-sans: var(--sans);
+  --font-mono: var(--mono);
+  /* Type scale: 13 / 15 / 17 / 22 / 28 / 40 (plus 11 for eyebrows and axis labels). */
+  --text-2xs: 11px;
+  --text-xs: 13px;
+  --text-sm: 15px;
+  --text-md: 17px;
+  --text-lg: 22px;
+  --text-xl: 28px;
+  --text-2xl: 40px;
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  background: transparent;
+  color: var(--text);
+  font: 15px/1.5 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'kern';
+  user-select: none;
+  cursor: default;
+}
+/* In a plain browser there's no vibrancy under the sidebar. */
+html:not(.native) body { background: var(--surface-2); }
+
+input, textarea, button, select { font: inherit; color: inherit; }
+input, textarea { user-select: text; }
+::selection { background: var(--gold-wash); }
+
+:focus-visible { outline: 1.5px solid var(--gold); outline-offset: 2px; border-radius: 6px; }
+:focus:not(:focus-visible) { outline: none; }
+
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* ── Type roles ──────────────────────────────────────────────────────────────────────────────── */
+.display {
+  font-family: var(--serif);
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  line-height: 1.12;
+}
+.eyebrow {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ── Controls ────────────────────────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 160ms ease-out, border-color 160ms ease-out, opacity 160ms;
+}
+.btn:hover:not(:disabled) { background: var(--surface-2); }
+.btn:disabled { opacity: 0.45; }
+/* The one primary action per view: gold, once. */
+.btn-primary {
+  background: var(--gold);
+  border-color: transparent;
+  color: #16130d;
+}
+.btn-primary:hover:not(:disabled) { background: color-mix(in oklab, var(--gold) 88%, white); }
+.btn-quiet { border-color: transparent; background: transparent; color: var(--muted); }
+.btn-quiet:hover:not(:disabled) { background: var(--hover); color: var(--text); }
+
+.field {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  font-size: 15px;
+  outline: none;
+  transition: border-color 160ms, box-shadow 160ms;
+}
+.field::placeholder { color: var(--faint); }
+.field:focus { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-wash); }
+textarea.field { height: auto; padding: 10px 12px; line-height: 1.5; resize: none; }
+
+kbd {
+  font: 500 11px var(--sans);
+  color: var(--muted);
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.hairline { border-color: var(--line); }
+
+[cmdk-group-heading] {
+  padding: 8px 10px 4px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* ── Observable Plot ─────────────────────────────────────────────────────────────────────────── */
+.plot svg { overflow: visible; font: 11px var(--sans); color: var(--muted); }
+.plot [aria-label='tip'] { font: 12px var(--sans); }
+.plot [aria-label='tip'] path { fill: var(--surface-2); stroke: var(--line); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+}

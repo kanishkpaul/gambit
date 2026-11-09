@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1C1A22"/><stop offset="1" stop-color="#0B0B0E"/></linearGradient>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="184" fill="url(#bg)"/>
+  <rect x="100.5" y="100.5" width="823" height="823" rx="183.5" fill="none" stroke="#2A2731" stroke-width="3"/>
+  <!-- Noise band and a slope rising out of it: read the slope. -->
+  <path d="M230 640 C 380 610, 520 560, 794 420 L 794 540 C 520 680, 380 730, 230 760 Z" fill="#ECE8DF" fill-opacity="0.07"/>
+  <path d="M230 700 C 380 670, 520 620, 794 480" fill="none" stroke="#ECE8DF" stroke-opacity="0.85" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="794" cy="480" r="34" fill="#C9A86A" stroke="#0B0B0E" stroke-width="14"/>
+  <text x="230" y="420" font-family="Georgia, 'Times New Roman', serif" font-size="230" font-weight="300" fill="#ECE8DF">g</text>
+</svg>

@@ -1,0 +1,159 @@
+"""SQLite storage. The brain is the single writer; every connection is opened here.
+
+Schema changes are append-only migrations keyed by `PRAGMA user_version`.
+"""
+
+from __future__ import annotations
+
+import json
+import sqlite3
+from pathlib import Path
+from typing import Any
+
+from . import config
+
+MIGRATIONS: list[str] = [
+    # 1 · Mirror
+    """
+    CREATE TABLE settings (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL            -- JSON
+    );
+
+    CREATE TABLE sync_state (
+      platform TEXT NOT NULL,
+      username TEXT NOT NULL,
+      cursor   TEXT,                 -- chesscom: JSON {archive_url: etag}; lichess: last createdAt ms
+      synced_at INTEGER,
+      PRIMARY KEY (platform, username)
+    );
+
+    CREATE TABLE games (
+      id           INTEGER PRIMARY KEY,
+      platform     TEXT NOT NULL,    -- 'chesscom' | 'lichess'
+      platform_id  TEXT NOT NULL,
+      url          TEXT,
+      played_at    INTEGER NOT NULL, -- unix seconds, game end
+      time_class   TEXT NOT NULL,    -- bullet | blitz | rapid | classical | daily
+      time_control TEXT,
+      base_s       INTEGER,
+      inc_s        INTEGER,
+      rated        INTEGER NOT NULL,
+      my_color     TEXT NOT NULL,    -- 'white' | 'black'
+      my_rating    INTEGER,
+      opp_rating   INTEGER,
+      opp_name     TEXT,
+      result       TEXT NOT NULL,    -- 'win' | 'loss' | 'draw'
+      termination  TEXT,             -- normalised: checkmate, resign, timeout, ...
+      eco          TEXT,
+      opening      TEXT,
+      ply_count    INTEGER NOT NULL,
+      pgn          TEXT NOT NULL,
+      analysed_at  INTEGER,          -- first pass done
+      deep_at      INTEGER,          -- critical moments re-searched
+      UNIQUE (platform, platform_id)
+    );
+    CREATE INDEX games_played ON games (played_at);
+    CREATE INDEX games_pending ON games (analysed_at, played_at);
+
+    CREATE TABLE moves (
+      game_id        INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+      ply            INTEGER NOT NULL, -- 1-based half-move
+      color          TEXT NOT NULL,
+      san            TEXT NOT NULL,
+      uci            TEXT NOT NULL,
+      fen_before     TEXT NOT NULL,
+      epd_before     TEXT NOT NULL,
+      epd_after      TEXT NOT NULL,
+      phase          TEXT NOT NULL,    -- opening | middlegame | endgame
+      clock_ms       INTEGER,          -- clock after the move
+      spent_ms       INTEGER,
+      cp_loss        INTEGER,          -- mover's view, clamped
+      wc_loss        REAL,             -- winning-chance drop, 0..1
+      class          TEXT,             -- NULL until analysed; best | ok | inaccuracy | mistake | blunder
+      motifs         TEXT,             -- JSON array
+      time_trouble   INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (game_id, ply)
+    );
+    CREATE INDEX moves_class ON moves (class);
+
+    -- Evaluations keyed by EPD (position without move counters), White's point of view.
+    CREATE TABLE evals (
+      epd        TEXT PRIMARY KEY,
+      cp         INTEGER,
+      mate       INTEGER,
+      best_uci   TEXT,
+      pv         TEXT,                 -- space-separated UCI
+      nodes      INTEGER,
+      source     TEXT NOT NULL,        -- 'lichess' | 'sf' | 'terminal'
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE audit (
+      id         INTEGER PRIMARY KEY CHECK (id = 1),  -- one-time: a single row, ever
+      started_at INTEGER NOT NULL,
+      report     TEXT NOT NULL,        -- JSON snapshot
+      lessons    TEXT,                 -- JSON array of 1–3 strings
+      filed_at   INTEGER
+    );
+    """,
+]
+
+
+def connect(path: Path | None = None) -> sqlite3.Connection:
+    path = path or config.data_dir() / "gambit.sqlite"
+    conn = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
+    conn.execute("PRAGMA foreign_keys = ON")
+    migrate(conn)
+    return conn
+
+
+def migrate(conn: sqlite3.Connection) -> None:
+    version = conn.execute("PRAGMA user_version").fetchone()[0]
+    for i, sql in enumerate(MIGRATIONS[version:], start=version + 1):
+        with tx(conn):
+            _exec_script(conn, sql)
+            conn.execute(f"PRAGMA user_version = {i}")
+
+
+def _exec_script(conn: sqlite3.Connection, sql: str) -> None:
+    # executescript() commits implicitly; run statements one by one so the migration stays atomic.
+    # Strip `--` comments first: they may contain semicolons.
+    sql = "\n".join(line.split("--", 1)[0] for line in sql.splitlines())
+    for stmt in sql.split(";"):
+        if stmt.strip():
+            conn.execute(stmt)
+
+
+class tx:
+    """`with tx(conn):` — one explicit transaction (the connection runs in autocommit mode)."""
+
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def __enter__(self) -> sqlite3.Connection:
+        self.conn.execute("BEGIN")
+        return self.conn
+
+    def __exit__(self, exc_type, *_):
+        self.conn.execute("ROLLBACK" if exc_type else "COMMIT")
+        return False
+
+
+def get_setting(conn: sqlite3.Connection, key: str, default: Any = None) -> Any:
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+    return json.loads(row[0]) if row else default
+
+
+def set_setting(conn: sqlite3.Connection, key: str, value: Any) -> None:
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (key, json.dumps(value)),
+    )
+
+
+def all_settings(conn: sqlite3.Connection) -> dict[str, Any]:
+    return {r["key"]: json.loads(r["value"]) for r in conn.execute("SELECT key, value FROM settings")}

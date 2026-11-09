@@ -24,7 +24,18 @@ The name is always lowercase, **gambit** (repo, app, bundle and window title), i
 - UI ↔ brain: JSON-RPC over a localhost WebSocket with a per-launch token; stdin is the brain's lifeline
 - Don't use Homebrew's default Python (3.15); Maia-2 needs 3.10–3.12
 
+## Layout and commands
+
+- `brain/` is the Python package `gambit_brain`: `config.py` (every tunable number), `db.py` (schema, migrations), `importers.py`, `chesslib.py`, `analysis.py` (Stockfish pool, batch job, classification), `tagger.py`, `metrics.py` (Slope), `audit.py`, `server.py` (JSON-RPC methods).
+- `app/` is the Tauri shell (`src-tauri/`) and the React UI (`src/`: `views/`, `components/`, `lib/`). `lib/types.ts` mirrors the brain's response shapes; change both together.
+- Brain tests and lint: `cd brain && uv run pytest -q && uv run ruff check gambit_brain tests`
+- UI typecheck and lint: `cd app && npx tsc -b && npm run lint`
+- Run in a browser for UI work: `cd app && npm run brain` (dev brain on port 8765, token `dev`) plus `npm run dev`. Point it at a sandbox database with `GAMBIT_DATA_DIR=<dir>`; the default is the real one in `~/Library/Application Support/dev.kanishkpaul.gambit/`.
+- Run the app: `cd app && npm run tauri dev`
+- `bakeoff/` holds the stack bake-off and its spike. It is reference material; don't build on it.
+
 ## Conventions
 
 - Don't commit engine binaries, model weights, puzzle databases or user data (see `.gitignore`).
-- Keep rating conversions, thresholds and stage allocations in one config module, not scattered constants.
+- Keep rating conversions, thresholds and stage allocations in one config module (`brain/gambit_brain/config.py`), not scattered constants.
+- Mirror never shows best moves or evaluations for your own positions: they become Solve items, so revealing them would spoil retrieval practice.

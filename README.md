@@ -8,10 +8,10 @@
 </p>
 
 <p align="center">
-  <img alt="status" src="https://img.shields.io/badge/status-in%20design-C9A86A?style=flat-square&labelColor=0B0B0E">
+  <img alt="status" src="https://img.shields.io/badge/status-v0.1%20mirror-C9A86A?style=flat-square&labelColor=0B0B0E">
   <img alt="platform" src="https://img.shields.io/badge/macOS-Apple%20Silicon-C9A86A?style=flat-square&labelColor=0B0B0E&logo=apple&logoColor=C9A86A">
   <img alt="shell" src="https://img.shields.io/badge/Tauri-2-C9A86A?style=flat-square&labelColor=0B0B0E&logo=tauri&logoColor=C9A86A">
-  <img alt="engine" src="https://img.shields.io/badge/Stockfish-18%2B-C9A86A?style=flat-square&labelColor=0B0B0E">
+  <img alt="engine" src="https://img.shields.io/badge/Stockfish-19-C9A86A?style=flat-square&labelColor=0B0B0E">
   <img alt="human model" src="https://img.shields.io/badge/Maia-3-C9A86A?style=flat-square&labelColor=0B0B0E">
   <img alt="private" src="https://img.shields.io/badge/use-personal%20only-C9A86A?style=flat-square&labelColor=0B0B0E">
 </p>
@@ -131,9 +131,9 @@ flowchart LR
 ┌──────────────────────────── gambit.app (Tauri 2) ────────────────────────────┐
 │                                                                              │
 │   UI   React · TypeScript · chessground · chessops                           │
-│        ───────────────────────────── local IPC / HTTP ─────────────────────  │
+│        ──────────────────── JSON-RPC over a localhost WebSocket ────────────  │
 │   Brain (Python 3.12)                                                        │
-│        python-chess · Stockfish 18+ (UCI) · Maia-3 (PyTorch, MPS) · FSRS     │
+│        python-chess · Stockfish 19 (UCI) · Maia-3 (PyTorch, MPS) · FSRS      │
 │        SQLite  ── games · positions · reviews · sessions · metrics           │
 │                                                                              │
 └──────────────┬───────────────────────┬───────────────────────┬───────────────┘
@@ -147,7 +147,7 @@ flowchart LR
 
 ## Roadmap
 
-- [ ] **v0.1 · Mirror.** Game import, batch analysis, slope dashboard, one-time history audit
+- [x] **v0.1 · Mirror.** Game import, batch analysis, slope dashboard, one-time history audit
 - [ ] **v0.2 · Solve.** Positions from your own blunders + Lichess puzzle library, solve-first, FSRS review
 - [ ] **v0.3 · Game Lab.** Engine-locked post-mortems, Maia comparison, fair-play lock, guardrails
 - [ ] **v0.4 · Train.** Daily planner, endgame trainer, Maia sparring
@@ -161,12 +161,21 @@ The full plan is in [`docs/PLAN.md`](docs/PLAN.md).
 
 ```
 gambit/
+├── app/           Tauri 2 shell (src-tauri/) and React UI (src/)
+├── brain/         Python 3.12 brain: storage, importers, Stockfish, metrics
+├── bakeoff/       stack bake-off: benchmarks, results and the board spike
 ├── assets/        brand assets
 ├── docs/
-│   ├── PLAN.md    product plan and build order
+│   ├── PLAN.md    product plan, build notes and build order
 │   └── DESIGN.md  design language and quality bar
 ├── CLAUDE.md      working notes for AI-assisted development
 └── README.md
+```
+
+Running it needs `uv`, Node 24, Rust and `brew install stockfish`:
+
+```bash
+cd brain && uv sync && cd ../app && npm install && npm run tauri dev
 ```
 
 <br>

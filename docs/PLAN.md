@@ -97,9 +97,22 @@ Switch the UI layer to native SwiftUI (keeping the brain and protocol unchanged)
 - **Diminishing returns warning:** flags when time on an activity grows while measured benefit shrinks.
 - **No streaks, quotas or daily shame mechanics.**
 
+## Build notes
+
+### v0.1 · Mirror (built 2026-11-09)
+
+- **Import.** Chess.com monthly archives with ETags (the last two months are re-checked each time); Lichess `/api/games/user` as NDJSON with `since`, clocks, evals and openings. Both use `httpx` directly rather than berserk, so one client handles streaming, the 429 wait and the cursor. Standard chess only.
+- **Analysis.** First pass at 100k nodes on 4 single-thread workers, newest games first, three games in flight; positions are deduplicated by EPD across games, and Lichess server evals are reused. Then a deep pass re-searches your blunders (the position before and after) at 1M nodes and reclassifies.
+- **Classification.** Evaluations clamped to ±1000; blunder ≥ 200 cp, mistake ≥ 100, inaccuracy ≥ 50, never an error while the mover stays ≥ +300. Time trouble is < 10% of base time left.
+- **Motifs.** An in-house starter tagger reads the refutation line: allowed or missed mate, back rank, hung piece, fork, pin, discovered attack, missed capture, lost material, else positional. The lichess-puzzler tagger comes with Solve.
+- **Mirror hides answers.** It shows counts and where errors happened, never best moves, because those positions become Solve items.
+- **Slope.** Rating against rated games played per platform and time class, a rolling 50-game mean, and a ±2 SD band (±80 Chess.com, ±60 Lichess). Ratings are a random walk, so a trend is drawn only when the rolling mean has moved more than the band over at least 50 games. Blunders per game, clock at move 30, losses on time, errors by phase and motif, and Gate 0 from the training start date. Maia band resemblance arrives with Maia.
+- **Audit.** One row, ever: a snapshot report with a 45-minute time-box (warning at 40), then 1–3 lessons and it closes. It includes your score after two straight losses, the evidence for the stop-loss rule.
+- **Fair-play lock.** A manual switch for now; it cancels the batch job and kills the Stockfish pool. Lichess live-game detection comes with v0.3.
+
 ## Build order
 
-1. **v0.1 · Mirror:** import, batch analysis, Slope dashboard, one-time audit.
+1. **v0.1 · Mirror:** import, batch analysis, Slope dashboard, one-time audit. *(built; see Build notes)*
 2. **v0.2 · Solve:** positions from your own blunders + Lichess puzzle library, solve-first, FSRS.
 3. **v0.3 · Game Lab:** engine-locked post-mortems, Maia comparison, fair-play lock, guardrails.
 4. **v0.4 · Train:** planner, endgames, Maia sparring.
