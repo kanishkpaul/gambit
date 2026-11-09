@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img alt="status" src="https://img.shields.io/badge/status-v0.1%20mirror-C9A86A?style=flat-square&labelColor=0B0B0E">
+  <img alt="status" src="https://img.shields.io/badge/status-v0.2%20solve-C9A86A?style=flat-square&labelColor=0B0B0E">
   <img alt="platform" src="https://img.shields.io/badge/macOS-Apple%20Silicon-C9A86A?style=flat-square&labelColor=0B0B0E&logo=apple&logoColor=C9A86A">
   <img alt="shell" src="https://img.shields.io/badge/Tauri-2-C9A86A?style=flat-square&labelColor=0B0B0E&logo=tauri&logoColor=C9A86A">
   <img alt="engine" src="https://img.shields.io/badge/Stockfish-19-C9A86A?style=flat-square&labelColor=0B0B0E">
@@ -148,7 +148,7 @@ flowchart LR
 ## Roadmap
 
 - [x] **v0.1 · Mirror.** Game import, batch analysis, slope dashboard, one-time history audit
-- [ ] **v0.2 · Solve.** Positions from your own blunders + Lichess puzzle library, solve-first, FSRS review
+- [x] **v0.2 · Solve.** Positions from your own blunders + Lichess puzzle library, solve-first, FSRS review
 - [ ] **v0.3 · Game Lab.** Engine-locked post-mortems, Maia comparison, fair-play lock, guardrails
 - [ ] **v0.4 · Train.** Daily planner, endgame trainer, Maia sparring
 - [ ] **v0.5 · Deepen.** Calculation trainer, openings, master games, Claude coach, calibration tests

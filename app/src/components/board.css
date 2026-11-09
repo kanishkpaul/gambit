@@ -1,0 +1,58 @@
+/* The board: muted walnut on dark slate, no gradients on the squares (docs/DESIGN.md).
+   It keeps its own palette in both app themes; a board is a board. */
+.gambit-board {
+  --sq-light: #8a7660;
+  --sq-dark: #3b3e45;
+  --glow: 201 168 106;
+}
+
+.gambit-board cg-board {
+  border-radius: 3px;
+  background-color: var(--sq-dark);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8' shape-rendering='crispEdges'%3E%3Cpath fill='%238a7660' d='M0 0h1v1H0zM2 0h1v1H2zM4 0h1v1H4zM6 0h1v1H6zM1 1h1v1H1zM3 1h1v1H3zM5 1h1v1H5zM7 1h1v1H7zM0 2h1v1H0zM2 2h1v1H2zM4 2h1v1H4zM6 2h1v1H6zM1 3h1v1H1zM3 3h1v1H3zM5 3h1v1H5zM7 3h1v1H7zM0 4h1v1H0zM2 4h1v1H2zM4 4h1v1H4zM6 4h1v1H6zM1 5h1v1H1zM3 5h1v1H3zM5 5h1v1H5zM7 5h1v1H7zM0 6h1v1H0zM2 6h1v1H2zM4 6h1v1H4zM6 6h1v1H6zM1 7h1v1H1zM3 7h1v1H3zM5 7h1v1H5zM7 7h1v1H7z'/%3E%3C/svg%3E");
+  background-size: 100% 100%;
+}
+
+/* Highlights are soft inner glows, not flat fills. */
+.gambit-board cg-board square.last-move {
+  background: rgb(var(--glow) / 0.2);
+  box-shadow: inset 0 0 18px rgb(var(--glow) / 0.55);
+}
+.gambit-board cg-board square.check {
+  background: radial-gradient(circle, rgb(217 130 111 / 0.75) 0%, rgb(217 130 111 / 0) 68%);
+}
+.gambit-board cg-board square.move-dest {
+  background: radial-gradient(rgb(236 232 223 / 0.3) 17%, transparent 19%);
+}
+.gambit-board cg-board square.move-dest:hover { background: rgb(236 232 223 / 0.1); }
+.gambit-board cg-board square.oc.move-dest {
+  background: radial-gradient(transparent 0%, transparent 78%, rgb(236 232 223 / 0.28) 80%);
+}
+.gambit-board cg-board square.selected { background: rgb(var(--glow) / 0.2); }
+
+.gambit-board coords { font: 600 9px var(--sans); letter-spacing: 0.06em; }
+.gambit-board coords coord { color: rgb(236 232 223 / 0.5) !important; }
+.gambit-board coords.ranks { left: 3px; top: 2px; }
+.gambit-board coords.files { bottom: 1px; left: 3px; }
+.gambit-board coords coord:nth-child(odd) { color: rgb(236 232 223 / 0.42) !important; }
+
+.gambit-board piece { will-change: transform; }
+.gambit-board piece.dragging { filter: drop-shadow(0 10px 14px rgb(0 0 0 / 0.45)); }
+
+/* Staunty pieces (sadsnake1, CC BY-NC-SA 4.0; see public/pieces/NOTICE.md). */
+.gambit-board piece.pawn.white { background-image: url('/pieces/staunty/wP.svg'); }
+.gambit-board piece.knight.white { background-image: url('/pieces/staunty/wN.svg'); }
+.gambit-board piece.bishop.white { background-image: url('/pieces/staunty/wB.svg'); }
+.gambit-board piece.rook.white { background-image: url('/pieces/staunty/wR.svg'); }
+.gambit-board piece.queen.white { background-image: url('/pieces/staunty/wQ.svg'); }
+.gambit-board piece.king.white { background-image: url('/pieces/staunty/wK.svg'); }
+.gambit-board piece.pawn.black { background-image: url('/pieces/staunty/bP.svg'); }
+.gambit-board piece.knight.black { background-image: url('/pieces/staunty/bN.svg'); }
+.gambit-board piece.bishop.black { background-image: url('/pieces/staunty/bB.svg'); }
+.gambit-board piece.rook.black { background-image: url('/pieces/staunty/bR.svg'); }
+.gambit-board piece.queen.black { background-image: url('/pieces/staunty/bQ.svg'); }
+.gambit-board piece.king.black { background-image: url('/pieces/staunty/bK.svg'); }
+
+@media (prefers-reduced-motion: reduce) {
+  .gambit-board piece { transition: none; }
+}

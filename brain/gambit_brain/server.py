@@ -22,10 +22,11 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+import chess
 import websockets
 from websockets.asyncio.server import ServerConnection
 
-from . import analysis, audit, config, db, importers, metrics
+from . import analysis, audit, config, db, importers, metrics, puzzles, solve
 
 log = logging.getLogger("gambit.brain")
 
@@ -47,6 +48,9 @@ class Brain:
         self.clients: set[ServerConnection] = set()
         self.pool = analysis.EnginePool()
         self.job = analysis.BatchAnalysis(conn, self.pool, lambda d: self.broadcast("analysis", d))
+        self.puzzles = puzzles.PuzzleImport(conn, lambda d: self.broadcast("puzzles", d))
+        self.live = analysis.EnginePool(config.LIVE)
+        self.solver = solve.Solver(conn, self.live_check)
         self.import_task: asyncio.Task | None = None
         self.import_state: dict[str, Any] = {"state": "idle"}
         if db.get_setting(conn, "training_start") is None:
@@ -67,6 +71,13 @@ class Brain:
             "audit.get": lambda p: audit.state(self.conn),
             "audit.start": lambda p: self._wrap(audit.start, self.conn),
             "audit.file": lambda p: self._wrap(audit.file, self.conn, p.get("lessons", [])),
+            "puzzles.status": lambda p: self.puzzles.status(),
+            "puzzles.import": lambda p: self.puzzles.start(),
+            "solve.overview": lambda p: self.solver.overview(),
+            "solve.start": lambda p: self._wrap(self.solver.start, p.get("mode", "standard")),
+            "solve.next": lambda p: self._wrap(self.solver.next),
+            "solve.move": self.solve_move,
+            "solve.end": lambda p: self.solver.end(),
         }
 
     @staticmethod
@@ -117,6 +128,7 @@ class Brain:
             db.set_setting(self.conn, "fairplay_lock", locked)
         if locked:
             await self.job.halt()  # kills the Stockfish pool, not just the panels
+            await self.live.stop()
         out = self.settings_get()
         await self.broadcast("settings", out)
         return out
@@ -172,6 +184,31 @@ class Brain:
     def analysis_pause(self, _p=None) -> dict[str, Any]:
         self.job.pause()
         return self.job.status()
+
+    # Solve ----------------------------------------------------------------------------------------
+    async def solve_move(self, p: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return await self.solver.move(int(p["item_id"]), str(p["uci"]), p.get("confidence"), p.get("line"),
+                                          p.get("ms"))
+        except (KeyError, ValueError) as e:
+            raise RpcError(str(e)) from e
+
+    async def live_check(self, fen: str, uci: str) -> int | None:
+        """Centipawns your move loses against the best move, for grading your own positions.
+        None (exact answers only) while the fair-play lock is on."""
+        if self._locked():
+            return None
+        await self.live.start()
+        board = chess.Board(fen)
+        mover_white = board.turn == chess.WHITE
+        nodes = self.live.budget.nodes
+        best, _, _ = await self.live.analyse(fen, nodes)
+        board.push_uci(uci)
+        if board.is_checkmate():
+            return 0
+        after, _, _ = await self.live.analyse(board.fen(), nodes)
+        sign = 1 if mover_white else -1
+        return max(0, sign * best.clamped() - sign * after.clamped())
 
     # Mirror ---------------------------------------------------------------------------------------
     def mirror_summary(self, p: dict[str, Any]) -> dict[str, Any]:
@@ -236,6 +273,7 @@ class Brain:
     def shutdown_now(self, reason: str) -> None:
         print(f"brain: shutting down ({reason})", file=sys.stderr, flush=True)
         self.pool.kill_now()
+        self.live.kill_now()
         try:
             self.conn.close()
         except Exception:

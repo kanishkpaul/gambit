@@ -2,17 +2,17 @@ import type { AnalysisStatus, Settings } from '../lib/types'
 import { num } from '../lib/format'
 import { Progress } from './ui'
 
-export type ViewId = 'mirror' | 'slope' | 'audit'
+export type ViewId = 'mirror' | 'solve' | 'slope' | 'audit'
 
 export const VIEWS: { id: ViewId; label: string; hint: string }[] = [
   { id: 'mirror', label: 'Mirror', hint: '⌘1' },
-  { id: 'slope', label: 'Slope', hint: '⌘2' },
-  { id: 'audit', label: 'Audit', hint: '⌘3' },
+  { id: 'solve', label: 'Solve', hint: '⌘2' },
+  { id: 'slope', label: 'Slope', hint: '⌘3' },
+  { id: 'audit', label: 'Audit', hint: '⌘4' },
 ]
 
 // The rest of the plan, shown honestly as what's next rather than as dead buttons.
 const LATER: [string, string][] = [
-  ['Solve', '0.2'],
   ['Game Lab', '0.3'],
   ['Endgames', '0.4'],
   ['Sparring', '0.4'],

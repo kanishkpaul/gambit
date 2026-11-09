@@ -96,3 +96,52 @@ STAGE_ALLOCATIONS = {
 
 # Time classes we treat as "serious" for the Slope headline.
 SERIOUS_TIME_CLASSES = ("rapid", "classical", "daily")
+
+
+# ── Solve (v0.2) ────────────────────────────────────────────────────────────────────────────────
+# Lichess puzzle library: keep well-rated, popular, stable puzzles only.
+PUZZLE_DB_URL = "https://database.lichess.org/lichess_db_puzzle.csv.zst"
+PUZZLE_MIN_POPULARITY = 90  # with 1,000+ plays: ~1.5M of ~5.9M puzzles, ~250 MB
+PUZZLE_MIN_PLAYS = 1000
+PUZZLE_MAX_RD = 90
+
+SOLVE_SET_SIZE = 20
+SOLVE_MAX_DUE = 12  # reviews first, but leave room for new material
+SOLVE_MAX_NEW_OWN = 6  # positions from your games per set
+SOLVE_TIMEBOX_MIN = 30
+SOLVE_SOFT_WARNING_MIN = 25
+SPEED_TIMEBOX_MIN = 5
+SPEED_RATING_OFFSET = -300  # speed mode drills recognition on easier positions
+
+# Starting solve rating on the Lichess puzzle scale. A 400–1200 Chess.com rapid player usually
+# solves around 1100–1500 there; start in the middle and let results move it.
+SOLVE_START_RATING = 1200
+SOLVE_TARGET_OFFSET = -100  # aim slightly below your level: retrieval should mostly succeed
+SOLVE_RATING_WINDOW = 75
+SOLVE_K_EARLY, SOLVE_K, SOLVE_K_EARLY_N = 32, 16, 30
+
+# FSRS. Learning steps are spaced so a failed position never returns within the same few minutes.
+FSRS_DESIRED_RETENTION = 0.9
+FSRS_LEARNING_STEPS_MIN = (10,)
+FSRS_RELEARNING_STEPS_MIN = (10,)
+FAST_SOLVE_MS = 20_000  # a sure, correct answer faster than this is graded Easy
+
+# Own positions: accept any move within this many centipawns of the best one (checked live).
+OWN_ACCEPT_CP = 50
+OWN_MIN_EVAL_BEFORE = -200  # skip positions that were already lost before the blunder
+LIVE = EngineBudget(workers=1, threads=3, hash_mb=128, nodes=400_000)
+
+# Stage-1 theme weights (the error tail: hung pieces, simple tactics, threats you must see).
+# Your own blunder motifs add weight to the matching themes.
+THEME_WEIGHTS = {
+    "hangingPiece": 3, "fork": 3, "pin": 2, "defensiveMove": 2, "mateIn1": 2, "mateIn2": 2,
+    "skewer": 1.5, "discoveredAttack": 1.5, "backRankMate": 1.5, "trappedPiece": 1,
+    "capturingDefender": 1, "deflection": 1, "attraction": 1, "doubleCheck": 0.5, "intermezzo": 0.5,
+}
+MOTIF_THEMES = {
+    "hung_piece": ["hangingPiece"], "fork": ["fork"], "pin": ["pin", "skewer"],
+    "discovered_attack": ["discoveredAttack"], "back_rank": ["backRankMate"],
+    "allowed_mate": ["defensiveMove", "mateIn2"], "missed_mate": ["mateIn1", "mateIn2"],
+    "missed_capture": ["hangingPiece", "capturingDefender"], "lost_material": ["deflection", "attraction"],
+}
+MOTIF_BOOST = 4.0  # added to a theme's weight in proportion to the share of your blunders it explains

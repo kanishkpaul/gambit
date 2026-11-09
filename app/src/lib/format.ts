@@ -47,3 +47,29 @@ export function timeControl(tc: string | null): string {
   const mins = base >= 60 ? `${base / 60}` : `${base}s`
   return inc ? `${mins}+${inc}` : mins
 }
+
+/** Lichess puzzle themes and our motif keys, in words. */
+const THEME_WORDS: Record<string, string> = {
+  hangingPiece: 'Hanging piece', mateIn1: 'Mate in 1', mateIn2: 'Mate in 2', mateIn3: 'Mate in 3', mateIn4: 'Mate in 4',
+  mateIn5: 'Mate in 5+', backRankMate: 'Back-rank mate', defensiveMove: 'Defensive move', oneMove: 'One move',
+  crushing: 'Crushing', advantage: 'Advantage', equality: 'Equality', short: 'Short', long: 'Long', veryLong: 'Very long',
+}
+const HIDDEN_THEMES = new Set(['oneMove', 'short', 'long', 'veryLong', 'master', 'masterVsMaster', 'superGM'])
+
+export function themeWords(t: string): string {
+  if (MOTIF[t]) return MOTIF[t]
+  if (THEME_WORDS[t]) return THEME_WORDS[t]
+  const words = t.replace(/([a-z])([A-Z0-9])/g, '$1 $2').toLowerCase()
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+export const visibleThemes = (ts: string[]) => ts.filter((t) => !HIDDEN_THEMES.has(t) && t !== 'positional')
+
+export function days(d: number | null): string | null {
+  if (d == null) return null
+  if (d < 1 / 24) return `in about ${Math.max(1, Math.round(d * 1440))} min`
+  if (d < 1) return `in ${Math.max(1, Math.round(d * 24))} h`
+  if (d < 1.5) return 'tomorrow'
+  if (d < 45) return `in ${Math.round(d)} days`
+  return `in ${Math.round(d / 30)} months`
+}

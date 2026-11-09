@@ -7,7 +7,7 @@ export function View({ children }: { children: ReactNode }) {
 }
 
 /** View transitions: an 8 px slide plus fade, cross-fade only under Reduce Motion. */
-export function Transition({ id, children }: { id: string; children: ReactNode }) {
+export function Transition({ id, children, fill = false }: { id: string; children: ReactNode; fill?: boolean }) {
   const reduce = useReducedMotion()
   return (
     <motion.div
@@ -16,6 +16,7 @@ export function Transition({ id, children }: { id: string; children: ReactNode }
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: reduce ? 0 : -4, transition: { duration: 0.12 } }}
       transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+      className={fill ? 'h-full' : undefined}
     >
       {children}
     </motion.div>

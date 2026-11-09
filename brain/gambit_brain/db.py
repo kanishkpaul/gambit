@@ -97,6 +97,70 @@ MIGRATIONS: list[str] = [
       filed_at   INTEGER
     );
     """,
+    # 2 · Solve
+    """
+    -- Lichess puzzle library (CC0), filtered on import. FEN is before the opponent's lead-in move.
+    CREATE TABLE puzzles (
+      id         TEXT PRIMARY KEY,
+      fen        TEXT NOT NULL,
+      moves      TEXT NOT NULL,       -- space-separated UCI: lead-in, then solution
+      rating     INTEGER NOT NULL,
+      rd         INTEGER NOT NULL,
+      popularity INTEGER NOT NULL,
+      plays      INTEGER NOT NULL,
+      themes     TEXT NOT NULL,       -- space-separated Lichess themes
+      game_url   TEXT,
+      opening    TEXT
+    );
+    CREATE INDEX puzzles_rating ON puzzles (rating);
+
+    -- Everything you can be asked to solve: library puzzles and positions from your own games.
+    CREATE TABLE items (
+      id         INTEGER PRIMARY KEY,
+      kind       TEXT NOT NULL,       -- 'puzzle' | 'own'
+      ref        TEXT NOT NULL,       -- puzzle id, or 'game_id:ply' (+ ':m' for the colour-mirrored variant)
+      fen        TEXT NOT NULL,       -- position before the lead-in move (or the solver's position if none)
+      lead_uci   TEXT,                -- opponent's move shown before you solve
+      solution   TEXT NOT NULL,       -- space-separated UCI; your moves at even indexes
+      reveal     TEXT,                -- the full line shown after you answer, if longer than the solution
+      themes     TEXT NOT NULL,       -- JSON array
+      rating     INTEGER,
+      created_at INTEGER NOT NULL,
+      UNIQUE (kind, ref)
+    );
+
+    CREATE TABLE cards (
+      item_id INTEGER PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE,
+      card    TEXT NOT NULL,          -- py-fsrs Card JSON
+      due     INTEGER NOT NULL
+    );
+    CREATE INDEX cards_due ON cards (due);
+
+    CREATE TABLE solve_sessions (
+      id          INTEGER PRIMARY KEY,
+      mode        TEXT NOT NULL,      -- 'standard' | 'speed'
+      started_at  INTEGER NOT NULL,
+      ended_at    INTEGER,
+      timebox_min INTEGER NOT NULL,
+      planned     INTEGER NOT NULL
+    );
+
+    CREATE TABLE reviews (
+      id           INTEGER PRIMARY KEY,
+      item_id      INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+      session_id   INTEGER REFERENCES solve_sessions(id),
+      at           INTEGER NOT NULL,
+      mode         TEXT NOT NULL,
+      first_seen   INTEGER NOT NULL,  -- 1 if this was the first attempt at the item
+      correct      INTEGER NOT NULL,
+      confidence   TEXT,              -- guess | unsure | sure
+      answer       TEXT,              -- your moves, UCI
+      line         TEXT,              -- the line you typed before committing
+      ms           INTEGER,
+      grade        INTEGER            -- FSRS rating 1–4, NULL in speed mode
+    );
+    CREATE INDEX reviews_item ON reviews (item_id);
+    """,
 ]
 
 

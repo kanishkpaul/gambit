@@ -131,3 +131,96 @@ export interface AuditState {
   warn_min: number
   max_lessons: number
 }
+
+// ── Solve ──────────────────────────────────────────────────────────────────────────────────────
+
+export interface SolveSessionInfo {
+  id: number
+  mode: 'standard' | 'speed'
+  total: number
+  index: number
+  started_at: number
+  timebox_min: number
+  warn_min: number | null
+}
+
+export interface SolveOverview {
+  due: number
+  due_later_today: number
+  new_own: number
+  library: number
+  learning: number
+  reviews_today: number
+  solve_rating: number
+  rated_attempts: number
+  set_size: number
+  timebox_min: number
+  speed_timebox_min: number
+  session: SolveSessionInfo | null
+}
+
+export interface PuzzleLibrary {
+  state: 'idle' | 'running' | 'done' | 'error'
+  count: number
+  imported_at: number | null
+  download_mb: number
+  received?: number
+  total?: number | null
+  kept?: number
+  error?: string
+}
+
+/** A position to solve. Deliberately carries no solution, themes, rating or source. */
+export interface SolvePosition {
+  done: false
+  item_id: number
+  index: number
+  total: number
+  mode: 'standard' | 'speed'
+  fen: string
+  lead_uci: string | null
+  played: string[]
+  replies: string[]
+  turn: 'white' | 'black'
+  elapsed_min: number
+  timebox_min: number
+}
+
+export interface SolveSummary {
+  mode: 'standard' | 'speed'
+  attempted: number
+  solved: number
+  confident_misses: number
+  median_ms: number | null
+  minutes: number
+  planned: number
+  solve_rating: number
+}
+
+export type SolveNext = SolvePosition | { done: true; reason: 'timebox' | 'complete'; summary: SolveSummary }
+
+export interface Reveal {
+  fen: string
+  solution: string[]
+  solution_san: string[]
+  themes: string[]
+  source: {
+    kind: 'puzzle' | 'own'
+    rating?: number
+    id?: string
+    url?: string
+    game_url?: string | null
+    played_at?: number
+    opp_name?: string | null
+    time_class?: string
+    platform?: Platform
+    move_number?: number
+    mirrored?: boolean
+  }
+  next_review_days: number | null
+  solve_rating: number | null
+}
+
+export type MoveResult =
+  | { result: 'correct'; done: false; reply_uci: string }
+  | { result: 'solved' | 'wrong'; done: true; reveal: Reveal; confident_miss: boolean }

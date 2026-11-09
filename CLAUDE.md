@@ -26,7 +26,7 @@ The name is always lowercase, **gambit** (repo, app, bundle and window title), i
 
 ## Layout and commands
 
-- `brain/` is the Python package `gambit_brain`: `config.py` (every tunable number), `db.py` (schema, migrations), `importers.py`, `chesslib.py`, `analysis.py` (Stockfish pool, batch job, classification), `tagger.py`, `metrics.py` (Slope), `audit.py`, `server.py` (JSON-RPC methods).
+- `brain/` is the Python package `gambit_brain`: `config.py` (every tunable number), `db.py` (schema, migrations), `importers.py`, `chesslib.py`, `analysis.py` (Stockfish pool, batch job, classification), `tagger.py`, `metrics.py` (Slope), `audit.py`, `puzzles.py` (Lichess library import), `solve.py` (items, sets, grading, FSRS), `server.py` (JSON-RPC methods).
 - `app/` is the Tauri shell (`src-tauri/`) and the React UI (`src/`: `views/`, `components/`, `lib/`). `lib/types.ts` mirrors the brain's response shapes; change both together.
 - Brain tests and lint: `cd brain && uv run pytest -q && uv run ruff check gambit_brain tests`
 - UI typecheck and lint: `cd app && npx tsc -b && npm run lint`
@@ -39,3 +39,4 @@ The name is always lowercase, **gambit** (repo, app, bundle and window title), i
 - Don't commit engine binaries, model weights, puzzle databases or user data (see `.gitignore`).
 - Keep rating conversions, thresholds and stage allocations in one config module (`brain/gambit_brain/config.py`), not scattered constants.
 - Mirror never shows best moves or evaluations for your own positions: they become Solve items, so revealing them would spoil retrieval practice.
+- Solve payloads sent to the UI must never carry the solution, themes, rating or source of the current position. Grading happens in the brain.

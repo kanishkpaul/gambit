@@ -11,6 +11,7 @@ import { Audit } from './views/Audit'
 import { Mirror } from './views/Mirror'
 import { SettingsSheet } from './views/Settings'
 import { Slope } from './views/Slope'
+import { Solve } from './views/Solve'
 
 const loadView = (): ViewId => {
   try {
@@ -51,7 +52,7 @@ export default function App() {
     brain.call<Settings>('fairplay.set', { locked: !settings?.fairplay_lock }).then(setSettings)
   }, [settings, setSettings])
 
-  // Keyboard: ⌘K palette, ⌘, settings, ⌘1–3 views.
+  // Keyboard: ⌘K palette, ⌘, settings, ⌘1–4 views.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!e.metaKey) return
@@ -61,7 +62,7 @@ export default function App() {
       } else if (e.key === ',') {
         e.preventDefault()
         setSettingsOpen(true)
-      } else if (/^[1-3]$/.test(e.key)) {
+      } else if (/^[1-4]$/.test(e.key)) {
         e.preventDefault()
         setView(VIEWS[Number(e.key) - 1].id)
       }
@@ -100,8 +101,9 @@ export default function App() {
           </div>
         )}
         <AnimatePresence mode="wait">
-          <Transition key={view} id={view}>
+          <Transition key={view} id={view} fill={view === 'solve'}>
             {view === 'mirror' && <Mirror settings={settings} analysis={analysis} imp={imp} onSettingsChange={setSettings} />}
+            {view === 'solve' && <Solve />}
             {view === 'slope' && <Slope />}
             {view === 'audit' && <Audit />}
           </Transition>

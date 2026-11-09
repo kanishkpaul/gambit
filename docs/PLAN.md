@@ -110,10 +110,21 @@ Switch the UI layer to native SwiftUI (keeping the brain and protocol unchanged)
 - **Audit.** One row, ever: a snapshot report with a 45-minute time-box (warning at 40), then 1–3 lessons and it closes. It includes your score after two straight losses, the evidence for the stop-loss rule.
 - **Fair-play lock.** A manual switch for now; it cancels the batch job and kills the Stockfish pool. Lichess live-game detection comes with v0.3.
 
+### v0.2 · Solve (built 2026-11-09)
+
+- **Library.** The Lichess puzzle CSV (310 MB zstd, ~5.9M puzzles) is streamed, decompressed on the fly and filtered to popularity ≥ 90, 1,000+ plays and rating deviation ≤ 90: about 1.5M puzzles, ~250 MB. Rerunning updates ratings in place.
+- **Own positions.** Every deep-checked blunder of yours (unless you were already lost) becomes an item that starts one move earlier, with the opponent's move as the lead-in, plus a colour-mirrored twin for variety. Alternatives within 50 cp of the best move are accepted, checked live by a 3-thread Stockfish (exact answers only while the fair-play lock is on).
+- **Sets.** 20 positions or 30 minutes: due reviews first (up to 12), then up to 6 new own positions, then library puzzles drawn by theme weight (Stage-1 error-tail themes, boosted by your own blunder motifs) at your solve rating − 100. Interleaved so the same theme or side to move rarely repeats. Unlabelled until answered.
+- **Solve first.** The client receives only the position; solutions stay in the brain until the item ends. On the first move you commit a move, an optional expected line and a confidence (guess / unsure / sure).
+- **Grading.** Wrong → Again; guess → Hard; unsure or slow sure → Good; sure under 20 s → Easy. FSRS-6 with 0.9 retention and 10-minute (re)learning steps. Any mate solves a mate puzzle. "Sure but wrong" is tracked as a calibration signal.
+- **Solve rating.** Elo-style on the Lichess puzzle scale from first attempts at library puzzles in standard sets, starting at 1200.
+- **Speed run.** 5 minutes of puzzles 300 below your solve rating; moves count immediately; no FSRS cards and no rating change.
+- **Board.** chessground with the spring-easing patch, the Staunty piece set (CC BY-NC-SA 4.0, see `app/public/pieces/NOTICE.md`), walnut on slate, typed SAN on every position.
+
 ## Build order
 
 1. **v0.1 · Mirror:** import, batch analysis, Slope dashboard, one-time audit. *(built; see Build notes)*
-2. **v0.2 · Solve:** positions from your own blunders + Lichess puzzle library, solve-first, FSRS.
+2. **v0.2 · Solve:** positions from your own blunders + Lichess puzzle library, solve-first, FSRS. *(built; see Build notes)*
 3. **v0.3 · Game Lab:** engine-locked post-mortems, Maia comparison, fair-play lock, guardrails.
 4. **v0.4 · Train:** planner, endgames, Maia sparring.
 5. **v0.5 · Deepen:** calculation, openings, master games, Claude coach, calibration.
