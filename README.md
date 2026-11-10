@@ -188,4 +188,8 @@ To build the ad-hoc-signed app bundle, run `npm run tauri build` in `app/`. The 
 
 Run `uv run --locked pytest` in `brain/` for the backend tests, and `npm run lint` in `app/` for the frontend lint checks.
 
-See [third-party notices](docs/THIRD_PARTY.md) for the board, engines and model licenses.
+## License
+
+Gambit's original code is copyright © 2026 Kanishk Paul and is licensed under the [GNU Affero General Public License v3.0](LICENSE).
+
+The board, engines, and model weights have their own terms. The Staunty pieces and the app icon derived from them in earlier commits retain their CC BY-NC-SA 4.0 terms. [Third-party notices](docs/THIRD_PARTY.md)
