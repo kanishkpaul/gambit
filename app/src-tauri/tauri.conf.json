@@ -28,6 +28,9 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "category": "Education"
+    "category": "Education",
+    "macOS": {
+      "signingIdentity": "-"
+    }
   }
 }

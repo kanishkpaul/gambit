@@ -1,6 +1,6 @@
 # gambit
 
-A personal macOS chess tutor for one player. It is not distributed, so optimise for this player's training, not for general users.
+A local-first macOS chess tutor for one player. Optimise for deliberate practice, game review and offline analysis.
 
 The name is always lowercase, **gambit** (repo, app, bundle and window title), including at the start of a sentence.
 

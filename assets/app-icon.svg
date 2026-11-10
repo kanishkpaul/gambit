@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- gambit app icon. The knight silhouette is adapted from the Staunty piece set (CC BY-NC-SA 4.0); see app/public/pieces/NOTICE.md. -->
+  <!-- gambit app icon: a faceted knight on deep green. -->
   <defs>
     <path id="sq" d="M100 285.4C100 182.9 182.9 100 285.4 100H738.6C841.1 100 924 182.9 924 285.4V738.6C924 841.1 841.1 924 738.6 924H285.4C182.9 924 100 841.1 100 738.6Z"/> <filter id="drop" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity="0.32"/></filter>
     <clipPath id="clip"><use href="#sq"/></clipPath>
@@ -13,12 +13,11 @@
   <g clip-path="url(#clip)">
     <rect width="1024" height="1024" fill="url(#lamp)"/>
     <ellipse cx="540" cy="722" rx="190" ry="22" fill="#000" fill-opacity="0.6" filter="url(#soft)"/>
-    <g transform="translate(232 176) scale(12.2)">
-      <path fill="url(#glass)" d="M25.192 23.015c-.1654 6.9672-11.758 5.2189-11.516 18.104l22.86.1184c-2.094-6.442 9.69-25.16-11.931-32.258v-.0001s-2.4381-2.601-5.9655-2.8237l.2227 3.5347-4.5583 4.5816c-2.6294 3.1455-8.7347 8.3784-7.7513 9.6111 3.1158 5.3041 6.3306 4.4316 6.3306 4.4316 4.2418-4.5433 5.8193-2.0894 12.309-5.2997z"/>
-      <path fill="url(#glass)" d="M25 36.457s-9.1309.048-11.691 1.6192c-1.7273 1.0602-2.1348 3.6514-1.8998 6.3237h27.182c.235-2.6723-.1725-5.2636-1.8999-6.3237-2.5597-1.5711-11.691-1.6192-11.691-1.6192z"/>
-      <path d="M19.32 14.694c-.7757.8609-.6902 1.1156-.8137 2.1503.8055.1232 1.5069.2398 2.2486.0656 2.3809-1.262.075-3.4026-1.4347-2.2162z" fill="#0B2522" opacity=".55"/>
-      <path d="M18.64 6.1556s3.051.738 4.9045 3.9825c20.499 7.1536 7.6413 27.937 5.7883 31.073l7.2034.026c-1.9871-3.2431 9.5482-25.597-11.931-32.258-1.7757-1.0691-2.7677-2.6092-5.9655-2.8238z" fill="#0B2522" opacity=".14"/>
-    </g>
+    <path fill="url(#glass)" d="M338 662H698L724 715H311Z"/>
+    <path fill="url(#glass)" d="M374 638L419 549L486 493L472 455L386 498L327 468L307 411L441 312L449 248L517 280L551 238L585 304C657 354 682 438 669 508L646 638Z"/>
+    <path fill="#0B2522" opacity=".16" d="M551 238L585 304C657 354 682 438 669 508L646 638H556L605 485L592 375L517 280Z"/>
+    <path fill="#0B2522" opacity=".6" d="M449 361L483 347L477 377L451 385Z"/>
+    <path fill="#0B2522" opacity=".3" d="M317 413L356 405L338 436Z"/>
   </g>
   <use href="#sq" fill="url(#rim)"/>
   <use href="#sq" fill="none" stroke="#fff" stroke-opacity="0.12" stroke-width="2"/>

@@ -39,20 +39,6 @@
 .gambit-board piece { will-change: transform; }
 .gambit-board piece.dragging { filter: drop-shadow(0 10px 14px rgb(0 0 0 / 0.45)); }
 
-/* Staunty pieces (sadsnake1, CC BY-NC-SA 4.0; see public/pieces/NOTICE.md). */
-.gambit-board piece.pawn.white { background-image: url('/pieces/staunty/wP.svg'); }
-.gambit-board piece.knight.white { background-image: url('/pieces/staunty/wN.svg'); }
-.gambit-board piece.bishop.white { background-image: url('/pieces/staunty/wB.svg'); }
-.gambit-board piece.rook.white { background-image: url('/pieces/staunty/wR.svg'); }
-.gambit-board piece.queen.white { background-image: url('/pieces/staunty/wQ.svg'); }
-.gambit-board piece.king.white { background-image: url('/pieces/staunty/wK.svg'); }
-.gambit-board piece.pawn.black { background-image: url('/pieces/staunty/bP.svg'); }
-.gambit-board piece.knight.black { background-image: url('/pieces/staunty/bN.svg'); }
-.gambit-board piece.bishop.black { background-image: url('/pieces/staunty/bB.svg'); }
-.gambit-board piece.rook.black { background-image: url('/pieces/staunty/bR.svg'); }
-.gambit-board piece.queen.black { background-image: url('/pieces/staunty/bQ.svg'); }
-.gambit-board piece.king.black { background-image: url('/pieces/staunty/bK.svg'); }
-
 @media (prefers-reduced-motion: reduce) {
   .gambit-board piece { transition: none; }
 }

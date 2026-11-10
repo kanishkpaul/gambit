@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <em>A private chess tutor for macOS, built for one player.</em><br>
+  <em>A local-first chess tutor for macOS.</em><br>
   <sub>It turns every mistake you make into a pattern you'll never miss again.</sub>
 </p>
 
@@ -13,7 +13,7 @@
   <img alt="shell" src="https://img.shields.io/badge/Tauri-2-C9A86A?style=flat-square&labelColor=0B0B0E&logo=tauri&logoColor=C9A86A">
   <img alt="engine" src="https://img.shields.io/badge/Stockfish-19-C9A86A?style=flat-square&labelColor=0B0B0E">
   <img alt="human model" src="https://img.shields.io/badge/Maia-3-C9A86A?style=flat-square&labelColor=0B0B0E">
-  <img alt="private" src="https://img.shields.io/badge/use-personal%20only-C9A86A?style=flat-square&labelColor=0B0B0E">
+  <img alt="local data" src="https://img.shields.io/badge/data-local-C9A86A?style=flat-square&labelColor=0B0B0E">
 </p>
 
 <br>
@@ -172,14 +172,20 @@ gambit/
 └── README.md
 ```
 
-Running it needs `uv`, Node 24, Rust and `brew install stockfish`:
+## Build and run
+
+Use an Apple silicon Mac with the Xcode Command Line Tools, Node.js 24, Rust 1.90 or newer, and uv for Python 3.12. Install Stockfish 19 and uv with Homebrew.
 
 ```bash
-cd brain && uv sync && cd ../app && npm install && npm run tauri dev
+brew install stockfish uv
+(cd brain && uv sync --locked)
+(cd app && npm ci && npm run tauri dev)
 ```
 
-<br>
+Try a puzzle or import a PGN to start. Connecting a Lichess or Chess.com account is optional. Maia downloads its model weights when first used. The optional coach uses a locally installed Ollama model.
 
-<p align="center">
-  <sub>Personal software. Not for distribution. © 2026 Kanishk Paul.</sub>
-</p>
+To build the ad-hoc-signed app bundle, run `npm run tauri build` in `app/`. The bundle starts its Python brain from this checkout. Keep the checkout in place, or set `GAMBIT_BRAIN_DIR` to its `brain/` folder when launching the app. The bundle is under `app/src-tauri/target/release/bundle/macos/`.
+
+Run `uv run --locked pytest` in `brain/` for the backend tests, and `npm run lint` in `app/` for the frontend lint checks.
+
+See [third-party notices](docs/THIRD_PARTY.md) for the board, engines and model licenses.

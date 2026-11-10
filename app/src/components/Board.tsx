@@ -4,6 +4,7 @@ import type { DrawShape } from '@lichess-org/chessground/draw'
 import type { Dests, Key } from '@lichess-org/chessground/types'
 import { useEffect, useRef } from 'react'
 import '@lichess-org/chessground/assets/chessground.base.css'
+import '@lichess-org/chessground/assets/chessground.cburnett.css'
 import './board.css'
 
 export type Color = 'white' | 'black'

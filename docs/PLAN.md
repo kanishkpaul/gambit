@@ -119,7 +119,7 @@ Switch the UI layer to native SwiftUI (keeping the brain and protocol unchanged)
 - **Grading.** Wrong → Again; guess → Hard; unsure or slow sure → Good; sure under 20 s → Easy. FSRS-6 with 0.9 retention and 10-minute (re)learning steps. Any mate solves a mate puzzle. "Sure but wrong" is tracked as a calibration signal.
 - **Solve rating.** Elo-style on the Lichess puzzle scale from first attempts at library puzzles in standard sets, starting at 1200.
 - **Speed run.** 5 minutes of puzzles 300 below your solve rating; moves count immediately; no FSRS cards and no rating change.
-- **Board.** chessground with the spring-easing patch, the Staunty piece set (CC BY-NC-SA 4.0, see `app/public/pieces/NOTICE.md`), walnut on slate, typed SAN on every position.
+- **Board.** chessground with the spring-easing patch, the Cburnett piece set (see [third-party notices](THIRD_PARTY.md)), walnut on slate, typed SAN on every position.
 
 ### v0.3 · Game Lab (built 2026-11-09)
 
